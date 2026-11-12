@@ -846,7 +846,7 @@ document.addEventListener('keydown', (e) => {
 
 /* ---------------- Delegação de eventos ---------------- */
 const acoes = {
-  nav: (t, e) => { e.preventDefault(); ui.view = t.dataset.view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+  nav: (t, e) => { e.preventDefault(); ui.view = t.dataset.view; render(); document.body.classList.remove('nav-oculta'); window.scrollTo({ top: 0, behavior: 'smooth' }); },
   'novo-livro': () => abrirFormLivro(),
   abrir: (t) => abrirDetalhe(t.dataset.id, t.dataset.lid),
   filtro: (t) => { ui.filtro = t.dataset.f; render(); },
@@ -1027,6 +1027,21 @@ function exemplos() {
   ];
 }
 
+
+/* ---------------- Celular: esconde a barra de baixo ao rolar para baixo ---------------- */
+(() => {
+  let ultimo = scrollY, acumulado = 0, pendente = false;
+  const atualizar = () => {
+    pendente = false;
+    const y = Math.max(0, scrollY), dy = y - ultimo; ultimo = y;
+    const fim = innerHeight + y >= document.documentElement.scrollHeight - 40;
+    if (y < 80 || fim) { acumulado = 0; document.body.classList.remove('nav-oculta'); return; }
+    acumulado = Math.sign(dy) === Math.sign(acumulado) ? acumulado + dy : dy;
+    if (acumulado > 24) document.body.classList.add('nav-oculta');
+    else if (acumulado < -24) document.body.classList.remove('nav-oculta');
+  };
+  addEventListener('scroll', () => { if (!pendente) { pendente = true; requestAnimationFrame(atualizar); } }, { passive: true });
+})();
 
 /* ---------------- Paralaxe da tela de login ---------------- */
 document.addEventListener('pointermove', (e) => {

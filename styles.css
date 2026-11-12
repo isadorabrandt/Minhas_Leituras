@@ -1092,3 +1092,11 @@ body.deslogado main { padding: 0; }
 .ver-senha .risco { transition: opacity .2s; }
 .ver-senha[aria-pressed="true"] .risco { opacity: 0; }
 @media (max-width: 700px) { .linha.com-olho { grid-template-columns: 74px 1fr auto; } }
+
+/* celular: topo rola junto; barra de baixo some ao descer e volta ao subir */
+@media (max-width: 700px) {
+  .topbar { position: relative; top: auto; }
+  .tabs, .btn-novo { transition: transform .35s cubic-bezier(.3,1,.4,1), opacity .25s; }
+  body.nav-oculta .tabs, body.nav-oculta .btn-novo { transform: translateY(calc(100% + 30px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
+  body.nav-oculta #toasts { bottom: calc(20px + env(safe-area-inset-bottom)); }
+}
