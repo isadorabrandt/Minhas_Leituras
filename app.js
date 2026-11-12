@@ -1,8 +1,9 @@
 'use strict';
 
 /* =========================================================
-   Minhas Leituras — protótipo
-   Dados salvos no navegador (localStorage).
+   Minhas Leituras
+   Dados: na conta da pessoa (Supabase, ver nuvem.js) ou, sem configuração,
+   só neste navegador (localStorage).
    Modelo:
      livro   = { id, titulo, autor, genero, paginas, capa, cor, criadoEm, leituras: [leitura] }
      leitura = { id, inicio, fim, paginaAtual, estrelas, criterios{}, personagem, citacao, notas, recomenda }
@@ -23,7 +24,7 @@ const PALETA = ['#e8458b', '#8f1d4a', '#b8b23e', '#f2703d', '#cdb0f0', '#f49ac1'
   '#6d7a2a', '#b5338a', '#ff9e7a', '#7a3b69', '#c2185b', '#9a8fd8', '#e0a43a', '#3f6b4f'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 6.1 6.7.82-4.93 4.6 1.27 6.63L12 17.4l-5.98 3.25 1.27-6.63-4.93-4.6 6.7-.82z"/></svg>';
 
-let db = carregar();
+let db = window.ML_CONFIG?.supabaseUrl ? { livros: [], metas: {}, tema: lerTemaLocal() } : carregar();
 const ui = {
   view: 'inicio', filtro: 'todos', busca: '', ordem: 'recentes', modo: 'lombadas',
   ano: new Date().getFullYear(), aberto: null, aba: null,
@@ -38,14 +39,17 @@ function carregar() {
   } catch (e) { /* ignora */ }
   return { livros: [], metas: {}, tema: null };
 }
+function lerTemaLocal() { try { return localStorage.getItem(KEY + ':tema'); } catch (e) { return null; } }
 function salvar() {
+  try { db.tema ? localStorage.setItem(KEY + ':tema', db.tema) : localStorage.removeItem(KEY + ':tema'); } catch (e) { /* ignora */ }
+  if (Nuvem.ativo) { if (Nuvem.logado) Nuvem.agendar(); return; }
   try { localStorage.setItem(KEY, JSON.stringify(db)); }
   catch (e) { toast('Não foi possível salvar: o armazenamento do navegador está cheio. Use capas menores.', 'erro'); }
 }
 
 /* ---------------- Utilidades ---------------- */
 const $ = (s, el = document) => el.querySelector(s);
-const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10) + Date.now().toString(36));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const fmtNota = (n) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
@@ -186,7 +190,8 @@ function viewInicio() {
   const citacoes = todas.filter((x) => x.leitura.citacao);
   const cit = citacoes.length ? citacoes[(new Date().getDate() + citacoes.length) % citacoes.length] : null;
   const h = new Date().getHours();
-  const saud = h < 12 ? 'Bom dia, leitora...' : h < 18 ? 'Boa tarde, leitora...' : 'Boa noite, leitora...';
+  const quem = Nuvem.nome() ? esc(Nuvem.nome().split(' ')[0]) : 'leitora';
+  const saud = `${h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'}, ${quem}...`;
   const nomes = lendo.slice(0, 2).map((l) => `<b>${esc(l.titulo)}</b>`).join(' &amp; ');
   const arte = (lendo.length ? lendo : fila).slice(0, 2);
   const corBtn = ['pink', 'olive', 'tang', 'lilac'];
@@ -469,7 +474,7 @@ function renderDetalhe() {
       <p class="script genero">${[l.genero, l.paginas ? `${l.paginas} páginas` : ''].filter(Boolean).map(esc).join(' · ') || 'um livro'}</p>
       <h2>${esc(l.titulo)}</h2>
       <p class="autor">${esc(l.autor) || 'Autor desconhecido'}</p>
-      ${notaAtual(l) ? `<div class="nota-topo">${starsHTML(notaAtual(l), { size: 'lg' })}<b>${fmtNota(notaAtual(l))}</b>${conc.length > 1 ? '<span class="script" style="font-size:.75rem">nota mais recente</span>' : ''}</div>` : ''}
+      ${notaAtual(l) ? `<div class="nota-topo">${starsHTML(notaAtual(l), { size: 'lg' })}<b>${fmtNota(notaAtual(l))}</b>${conc.length > 1 ? '<span class="script" style="font-size:1rem">nota mais recente</span>' : ''}</div>` : ''}
       ${evolucao}
       ${ord.length ? `<div class="leitura-tabs" role="tablist">${ord.map((x, i) => `
         <button role="tab" class="${x.id === ui.aba ? 'ativo' : ''}" data-action="aba" data-lid="${x.id}">${ordinal(i + 1)} leitura ${x.fim ? (x.estrelas ? `★ ${fmtNota(x.estrelas)}` : '') : '<span class="pill lendo">agora</span>'}</button>`).join('')}</div>
@@ -726,7 +731,7 @@ function abrirFormLeitura(livroId, leituraId, { concluir = false, passada = fals
       </div>
       ${!concluir && !passada && !base.fim ? `<div class="field"><label for="l-pag">Página atual</label><input id="l-pag" type="number" min="0" name="paginaAtual" value="${base.paginaAtual || 0}"></div>` : ''}
       <div class="nota-geral mesh grain"><span class="lbl">Nota geral</span>${starsHTML(base.estrelas || 0, { input: true, name: 'estrelas', size: 'xl' })}</div>
-      <p class="lbl" style="margin:0 0 6px">Critérios <span class="script" style="text-transform:none;font-size:.72rem;letter-spacing:0">clique na metade da estrela pra meia nota</span></p>
+      <p class="lbl" style="margin:0 0 6px">Critérios <span class="script" style="text-transform:none;font-size:.95rem;letter-spacing:0">clique na metade da estrela pra meia nota</span></p>
       <div class="crit-grid" style="margin-bottom:16px">${CRITERIOS.map(([k, t]) => `<div class="crit"><span>${t}</span>${starsHTML(base.criterios[k] || 0, { input: true, name: k, variant: 'blue' })}</div>`).join('')}</div>
       <div class="field"><label for="l-pers">Personagem favorito</label><input id="l-pers" name="personagem" value="${esc(base.personagem)}"></div>
       <div class="field"><label for="l-cit">Citação favorita</label><textarea id="l-cit" name="citacao" rows="2">${esc(base.citacao)}</textarea></div>
@@ -849,7 +854,9 @@ const acoes = {
     if (db.livros.length && !confirm('Isso adiciona os livros de exemplo à sua estante. Continuar?')) return;
     db.livros.push(...exemplos()); db.metas[new Date().getFullYear()] ||= 24; salvar(); render(); fecharMenu(); toast('Exemplos carregados — explore à vontade!');
   },
-  limpar: () => { if (confirm('Apagar TODOS os livros e leituras? Exporte um backup antes.')) { db.livros = []; salvar(); render(); } fecharMenu(); },
+  'login-aba': (t) => Nuvem.trocarAba(t.dataset.aba),
+  sair: () => { fecharMenu(); Nuvem.sair(); },
+  limpar: () => { if (confirm(`Apagar TODOS os livros e leituras${Nuvem.ativo ? ' da sua conta' : ''}? Exporte um backup antes.`)) { db.livros = []; salvar(); render(); } fecharMenu(); },
 };
 document.addEventListener('click', (e) => {
   const s = e.target.closest('.stars.input');
@@ -895,6 +902,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('submit', (e) => {
   if (e.target.id === 'form-livro') { e.preventDefault(); salvarLivro(e.target); }
   if (e.target.id === 'form-leitura') { e.preventDefault(); salvarLeitura(e.target); }
+  if (e.target.id === 'form-login') { e.preventDefault(); Nuvem.enviarLogin(e.target); }
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'q-online') { e.preventDefault(); buscarOnline(); }
@@ -977,4 +985,7 @@ function exemplos() {
 
 /* ---------------- Início ---------------- */
 aplicarTema();
-render();
+if (Nuvem.ativo) {
+  $('#app').innerHTML = '<div class="carregando"><span class="loading"></span></div>';
+  Nuvem.iniciar();
+} else render();

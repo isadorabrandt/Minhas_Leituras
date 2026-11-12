@@ -6,7 +6,8 @@
   <title>Minhas Leituras</title>
   <meta name="description" content="Meu diário de leituras: estante, avaliações por estrelas e releituras.">
   <meta name="theme-color" content="#5e0b2b">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..900,0..100,0..1;1,9..144,400..900,0..100,0..1&family=Figtree:wght@400..800&family=Homemade+Apple&display=swap" rel="stylesheet">
@@ -16,7 +17,8 @@
   <div class="announce" id="announce">✿ diário de leituras ✿</div>
   <header class="topbar">
     <a class="brand" href="#" data-action="nav" data-view="inicio" aria-label="Minhas Leituras — início">
-      <span class="brand-1">Minhas</span><span class="brand-2">Leituras</span>
+      <img class="brand-logo" src="logo.png" alt="" width="46" height="46">
+      <span class="brand-txt"><span class="brand-1">Minhas</span><span class="brand-2">Leituras</span></span>
     </a>
     <nav class="tabs" aria-label="Seções">
       <button data-action="nav" data-view="inicio">Início</button>
@@ -24,17 +26,20 @@
       <button data-action="nav" data-view="diario">Diário</button>
     </nav>
     <div class="top-actions">
+      <span id="sync" class="sync" hidden></span>
       <button class="icon-btn" data-action="tema" aria-label="Alternar tema claro/escuro" title="Tema">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
       <details class="menu">
         <summary class="icon-btn" aria-label="Mais opções" title="Mais opções">⋯</summary>
         <div class="menu-pop">
+          <div id="conta" class="conta" hidden><span class="script">conectada como</span><span class="conta-email"></span></div>
           <button data-action="exportar">Exportar backup (.json)</button>
           <button data-action="importar">Importar backup</button>
           <button data-action="exemplos">Carregar livros de exemplo</button>
           <hr>
           <button data-action="limpar" class="danger">Apagar tudo</button>
+          <button data-action="sair" class="so-logado">Sair da conta</button>
         </div>
       </details>
       <button class="btn olive btn-novo" data-action="novo-livro" aria-label="Novo livro"><span class="mais">＋</span><span class="txt">Novo livro</span></button>
@@ -49,6 +54,9 @@
 
   <input type="file" id="importar-arquivo" accept="application/json,.json" hidden>
   <div id="toasts" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="nuvem.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
