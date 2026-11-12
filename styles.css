@@ -1028,3 +1028,11 @@ body.deslogado main { padding: 0; }
 }
 @keyframes balancar { 50% { transform: rotate(-6deg) translateY(-4px); } }
 @media (max-width: 700px) { .sp-l2 { margin-left: .4em; } .sp-sol { translate: -50% -60%; } }
+
+/* login: rótulo em cima quando é longo; bolso só com o nome */
+.linha.empilhada { grid-template-columns: 1fr; gap: 0; }
+.linha.empilhada label { padding-bottom: 0; }
+.bolso { padding-top: 26px; }
+.bolso b { font-size: 1.45rem; }
+.login { padding-bottom: 80px; }
+@media (max-width: 700px) { .login { padding-bottom: 50px; } .linha.empilhada { grid-template-columns: 1fr; } }

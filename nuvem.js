@@ -130,7 +130,7 @@ const Nuvem = (() => {
   /* ---------- tela de login: ficha de biblioteca ---------- */
   let portao = null; // segura a troca de tela enquanto o carimbo anima
 
-  const linha = (id, rotulo, attrs) => `<div class="linha"><label for="${id}">${rotulo}</label><input id="${id}" ${attrs}></div>`;
+  const linha = (id, rotulo, attrs, extra = '') => `<div class="linha ${extra}"><label for="${id}">${rotulo}</label><input id="${id}" ${attrs}></div>`;
 
   function faceEntrar(n) {
     const esqueci = abaLogin === 'esqueci', nova = abaLogin === 'nova-senha';
@@ -154,7 +154,7 @@ const Nuvem = (() => {
       <p class="script">que bom te ver por aqui...</p>
       <h1>Criar conta</h1>
       <form class="form-login" data-modo="criar" novalidate>
-        ${linha('lg-nome', 'nome', 'name="nome" autocomplete="given-name" required')}
+        ${linha('lg-nome', 'como posso te chamar?', 'name="nome" autocomplete="given-name" required', 'empilhada')}
         ${linha('lg-email2', 'e-mail', 'name="email" type="email" autocomplete="email" required')}
         ${linha('lg-senha2', 'senha', 'name="senha" type="password" minlength="6" autocomplete="new-password" required placeholder="mín. 6 caracteres"')}
         <p class="login-msg" role="status"></p>
@@ -174,10 +174,6 @@ const Nuvem = (() => {
       { titulo: 'Aquela releitura', autor: 'de novo', cor: '#f2703d' },
       { titulo: 'O que vem depois', autor: 'surpresa', cor: '#cdb0f0' },
     ];
-    const lombadas = Array.from({ length: 34 }, (_, i) => {
-      const c = PALETA[(i * 7) % PALETA.length];
-      return `<i style="--c:${c};--t:${textoSobre(c)};--h:${70 + (hash('h' + i) % 70)}px;--w:${20 + (hash('w' + i) % 18)}px;--d:${300 + i * 40}ms"></i>`;
-    }).join('');
     $('#app').innerHTML = `<section class="login mesh grain">
       <div class="login-deco" aria-hidden="true">${fakes.map((f, i) => `<div class="deco-item" style="--prof:${[18, -24, 14, -12][i]}">${polaroidHTML(f, { r: [-9, 7, -5, 10][i], fita: ['', 'olive', 'tang', ''][i] })}</div>`).join('')}</div>
       <div class="login-palco">
@@ -187,10 +183,9 @@ const Nuvem = (() => {
             <div class="ficha-face frente" ${criar ? 'inert' : ''}>${faceEntrar(n)}</div>
             <div class="ficha-face verso" ${criar ? '' : 'inert'}>${faceCriar(n)}</div>
           </div>
-          <div class="bolso" aria-hidden="true"><span>biblioteca particular</span><b>Minhas Leituras</b><small>devolva com carinho ✿</small></div>
+          <div class="bolso" aria-hidden="true"><b>Minhas Leituras</b></div>
         </div>
       </div>
-      <div class="login-estante" aria-hidden="true">${lombadas}</div>
     </section>`;
     if (msg) avisoNaFace(msg, tipo);
     setTimeout(() => $('.ficha-face:not([inert]) input')?.focus({ preventScroll: true }), 900);
