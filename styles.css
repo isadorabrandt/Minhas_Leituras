@@ -1057,7 +1057,7 @@ body.deslogado main { padding: 0; }
   position: relative; box-shadow: 2px 2px 0 var(--stroke); transition: background .25s;
 }
 .chave::after {
-  content: "✿"; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
   background: var(--pink); border: 2px solid var(--stroke); font-size: .65rem; line-height: 1; color: var(--wine);
   transition: transform .35s cubic-bezier(.3,1.6,.5,1), background .25s;
 }

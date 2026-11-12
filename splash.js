@@ -45,7 +45,7 @@ const Splash = (() => {
     if (!s || saindo) return;
     if (nome) {
       const m = s.querySelector('.sp-msg');
-      m.textContent = `oi, ${nome}! ✿`; m.classList.add('nome');
+      m.textContent = `oi, ${nome}!`; m.classList.add('nome');
     }
     clearTimeout(limite); clearTimeout(aguardando);
     const falta = Math.max(0, MINIMO - (performance.now() - inicio));

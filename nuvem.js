@@ -124,7 +124,7 @@ const Nuvem = (() => {
     db.livros = local.livros;
     db.metas = { ...local.metas, ...db.metas };
     render(); agendar();
-    toast('Livros importados para a sua conta ✿');
+    toast('Livros importados para a sua conta!');
   }
 
   /* ---------- tela de login: ficha de biblioteca ---------- */

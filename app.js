@@ -116,7 +116,7 @@ function pintarEstrelas(el, v) {
   const val = el.querySelector('.stars-val'); if (val) val.textContent = v ? fmtNota(v) : '—';
 }
 
-const ORNAMENTOS = ['✿', '❀', '✦', '☾', '♡', '✸'];
+const ORNAMENTOS = ['✦', '☾', '♡', '✸'];
 const rot = (id, amp = 3) => ((hash(id) % 7) - 3) * (amp / 3);
 
 function capaHTML(l, extra = '') {
@@ -127,8 +127,8 @@ function capaHTML(l, extra = '') {
 function polaroidHTML(l, { r = rot(l.id || l.titulo, 5), fita = '', legenda = true } = {}) {
   return `<div class="polaroid tape ${fita}" style="--r:${r}deg"><div class="tilt">${capaHTML(l)}</div>${legenda ? `<span class="cap">${esc(l.titulo)}</span>` : ''}</div>`;
 }
-function seloHTML(texto, centro = '✿') {
-  const t = `${texto} ✿ ${texto} ✿ `;
+function seloHTML(texto, centro = '✦') {
+  const t = `${texto} • ${texto} • `;
   return `<div class="selo"><svg viewBox="0 0 120 120"><defs><path id="circ-${hash(texto)}" d="M60 60m-44 0a44 44 0 1 1 88 0a44 44 0 1 1-88 0"/></defs>
     <circle class="bg" cx="60" cy="60" r="58"/><text><textPath href="#circ-${hash(texto)}">${esc(t)}</textPath></text></svg><b>${centro}</b></div>`;
 }
@@ -149,8 +149,8 @@ function renderFaixas() {
   const feitas = todasLeituras().filter((x) => x.leitura.fim && x.leitura.fim.startsWith(String(ano))).length;
   const alvo = db.metas[ano] || 12;
   $('#announce').innerHTML = db.livros.length
-    ? `✿ meta de ${ano}: <b>${feitas} de ${alvo}</b> livros ${feitas >= alvo ? '— meta batida! 🎉' : `— faltam ${alvo - feitas}`} ✿`
-    : '✿ seu diário de leituras começa aqui ✿';
+    ? `meta de ${ano}: <b>${feitas} de ${alvo}</b> livros ${feitas >= alvo ? '— meta batida! 🎉' : `— faltam ${alvo - feitas}`}`
+    : 'seu diário de leituras começa aqui';
 }
 
 function primeiroNome() {
@@ -489,7 +489,7 @@ function renderDetalhe() {
       ${ord.length ? `<div class="leitura-tabs" role="tablist">${ord.map((x, i) => `
         <button role="tab" class="${x.id === ui.aba ? 'ativo' : ''}" data-action="aba" data-lid="${x.id}">${ordinal(i + 1)} leitura ${x.fim ? (x.estrelas ? `★ ${fmtNota(x.estrelas)}` : '') : '<span class="pill lendo">agora</span>'}</button>`).join('')}</div>
         ${paginaLeitura(l, ord.find((x) => x.id === ui.aba) || ord[ord.length - 1], ord)}`
-        : `<div class="journal" style="padding:34px;text-align:center"><p class="script" style="margin:0">ainda não há leituras deste livro... quando começar, a página do diário aparece aqui ✿</p></div>`}
+        : `<div class="journal" style="padding:34px;text-align:center"><p class="script" style="margin:0">ainda não há leituras deste livro... quando começar, a página do diário aparece aqui</p></div>`}
     </div>
   </div>`;
 }
@@ -589,7 +589,7 @@ function abrirFormLivro(id = null) {
             <button type="button" class="btn small" data-action="capa-url">Colar link</button>
             <button type="button" class="btn small ghost" data-action="remover-capa">Remover</button>
           </div>
-          <p class="dica">sem capa? a gente cria uma fofinha. e a cor da capa pinta a lombada na estante ✿</p>
+          <p class="dica">sem capa? a gente cria uma fofinha. e a cor da capa pinta a lombada na estante</p>
         </div>
       </div>
       <div class="field"><label for="f-titulo">Título *</label><input id="f-titulo" name="titulo" required value="${esc(l?.titulo || '')}"></div>
@@ -613,7 +613,7 @@ function abrirFormLivro(id = null) {
         <label class="check-crit"><input type="checkbox" name="detalhar"><span class="chave" aria-hidden="true"></span><span>Quero avaliar também os critérios, personagem e citação favorita</span></label>
         <div class="detalhes-lido" id="detalhes-lido" inert>
           <div class="detalhes-dentro">
-            <p class="script detalhes-titulo">a ficha completa da leitura ✿</p>
+            <p class="script detalhes-titulo">a ficha completa da leitura</p>
             <p class="lbl" style="margin:0 0 6px">Critérios <span class="script" style="text-transform:none;font-size:.95rem;letter-spacing:0">clique na metade da estrela pra meia nota</span></p>
             <div class="crit-grid" style="margin-bottom:16px">${CRITERIOS.map(([k, t]) => `<div class="crit"><span>${t}</span>${starsHTML(0, { input: true, name: k, variant: 'blue' })}</div>`).join('')}</div>
             <div class="field"><label for="f-pers">Personagem favorito</label><input id="f-pers" name="personagem"></div>
