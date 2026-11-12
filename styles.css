@@ -1111,3 +1111,23 @@ body.deslogado main { padding: 0; }
 .seg-rec label, .check-crit { position: relative; }
 .seg-rec input { width: 1px; height: 1px; left: 0; top: 0; }
 .radio-cards input { left: 0; top: 0; width: 1px; height: 1px; margin: 0; }
+
+/* ===== Ajustes mobile: livros do topo alinhados ===== */
+@media (max-width: 700px) {
+  .hero-art { min-height: 0; display: flex; justify-content: center; align-items: flex-start; gap: 22px; padding: 18px 0 44px; }
+  .hero-art > .polaroid, .hero-art > button { position: relative; left: auto !important; right: auto !important; top: auto !important; width: 132px; flex: none; }
+  .hero-art .polaroid, .hero-art > button .polaroid { --r: 0deg !important; rotate: 0deg; }
+  .hero-art .polaroid.tape::before { rotate: -3deg; }
+  .hero-art .selo { position: absolute; left: calc(50% - 42px); bottom: 0; }
+}
+
+/* ===== Modais: nunca rolar para o lado ===== */
+.modal { overflow-x: hidden; overscroll-behavior: contain; }
+.modal form, .modal-body, .field, .row > *, .row3 > *, .crit-grid > *, .detalhe > * { min-width: 0; }
+.field input, .field textarea, .field select { min-width: 0; max-width: 100%; }
+input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; display: block; min-height: 46px; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+html:has(dialog[open]) { overflow: hidden; }
+@media (max-width: 700px) {
+  .modal, .modal.wide { touch-action: pan-y; }
+}
