@@ -96,17 +96,7 @@ img { display: block; max-width: 100%; }
 :root[data-theme="dark"] .tabs button.ativo { color: #3d0a1f; }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 
-.marquee {
-  overflow: hidden; background: var(--tang); color: var(--wine); border-bottom: 2px solid var(--stroke);
-  font-family: var(--serif); font-variation-settings: "SOFT" 100, "WONK" 1; font-weight: 600; font-size: 1.05rem;
-  white-space: nowrap; padding: 8px 0;
-}
-:root[data-theme="dark"] .marquee { color: #2d0918; }
-.marquee-track { display: inline-flex; gap: 0; animation: rolar 38s linear infinite; }
-.marquee:hover .marquee-track { animation-play-state: paused; }
-.marquee-track span { padding: 0 18px; }
-.marquee-track i { font-style: normal; color: var(--paper); }
-@keyframes rolar { to { transform: translateX(-50%); } }
+
 
 /* ============ Botões ============ */
 .btn {

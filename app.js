@@ -142,10 +142,6 @@ function renderFaixas() {
   $('#announce').innerHTML = db.livros.length
     ? `✿ meta de ${ano}: <b>${feitas} de ${alvo}</b> livros ${feitas >= alvo ? '— meta batida! 🎉' : `— faltam ${alvo - feitas}`} ✿`
     : '✿ seu diário de leituras começa aqui ✿';
-  const lendo = db.livros.filter((l) => status(l) === 'lendo').map((l) => `lendo: ${esc(l.titulo)}`);
-  const frases = ['ler é mais do que contar páginas', ...lendo, 'releia sem medo', 'toda nota tem seu tempo', 'uma página de cada vez', 'livro bom é livro relido'];
-  const linha = frases.map((f) => `<span>${f}</span><i>✿</i>`).join('');
-  $('#marquee').innerHTML = linha + linha + linha + linha;
 }
 
 function viewVazia() {
