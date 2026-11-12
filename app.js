@@ -855,6 +855,7 @@ const acoes = {
     db.livros.push(...exemplos()); db.metas[new Date().getFullYear()] ||= 24; salvar(); render(); fecharMenu(); toast('Exemplos carregados — explore à vontade!');
   },
   'login-aba': (t) => Nuvem.trocarAba(t.dataset.aba),
+  'login-virar': (t) => Nuvem.virar(t.dataset.aba),
   sair: () => { fecharMenu(); Nuvem.sair(); },
   limpar: () => { if (confirm(`Apagar TODOS os livros e leituras${Nuvem.ativo ? ' da sua conta' : ''}? Exporte um backup antes.`)) { db.livros = []; salvar(); render(); } fecharMenu(); },
 };
@@ -902,7 +903,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('submit', (e) => {
   if (e.target.id === 'form-livro') { e.preventDefault(); salvarLivro(e.target); }
   if (e.target.id === 'form-leitura') { e.preventDefault(); salvarLeitura(e.target); }
-  if (e.target.id === 'form-login') { e.preventDefault(); Nuvem.enviarLogin(e.target); }
+  if (e.target.classList.contains('form-login')) { e.preventDefault(); Nuvem.enviarLogin(e.target); }
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'q-online') { e.preventDefault(); buscarOnline(); }
@@ -983,9 +984,16 @@ function exemplos() {
 }
 
 
+/* ---------------- Paralaxe da tela de login ---------------- */
+document.addEventListener('pointermove', (e) => {
+  const l = document.querySelector('.login'); if (!l || e.pointerType !== 'mouse') return;
+  l.style.setProperty('--px', (e.clientX / innerWidth - 0.5).toFixed(3));
+  l.style.setProperty('--py', (e.clientY / innerHeight - 0.5).toFixed(3));
+});
+
 /* ---------------- Início ---------------- */
 aplicarTema();
 if (Nuvem.ativo) {
   $('#app').innerHTML = '<div class="carregando"><span class="loading"></span></div>';
   Nuvem.iniciar();
-} else render();
+} else { render(); Splash.pronto(); }

@@ -127,74 +127,147 @@ const Nuvem = (() => {
     toast('Livros importados para a sua conta ✿');
   }
 
-  /* ---------- tela de login ---------- */
+  /* ---------- tela de login: ficha de biblioteca ---------- */
+  let portao = null; // segura a troca de tela enquanto o carimbo anima
+
+  const linha = (id, rotulo, attrs) => `<div class="linha"><label for="${id}">${rotulo}</label><input id="${id}" ${attrs}></div>`;
+
+  function faceEntrar(n) {
+    const esqueci = abaLogin === 'esqueci', nova = abaLogin === 'nova-senha';
+    return `<div class="ficha-topo"><span>Ficha de leitora</span><span>nº ${n}</span></div>
+      <p class="script">${nova ? 'quase lá...' : esqueci ? 'acontece com todo mundo...' : 'oi, leitora...'}</p>
+      <h1>Minhas Leituras</h1>
+      <form class="form-login" data-modo="${nova ? 'nova-senha' : esqueci ? 'esqueci' : 'entrar'}" novalidate>
+        ${nova ? '' : linha('lg-email', 'e-mail', 'name="email" type="email" autocomplete="email" required')}
+        ${esqueci ? '' : linha('lg-senha', nova ? 'nova senha' : 'senha', `name="senha" type="password" minlength="6" autocomplete="${nova ? 'new-password' : 'current-password'}" required`)}
+        <p class="login-msg" role="status"></p>
+        <button class="btn hot login-btn" type="submit">${nova ? 'Salvar nova senha' : esqueci ? 'Enviar link por e-mail' : 'Entrar'}</button>
+      </form>
+      <div class="login-links">
+        ${esqueci || nova ? '<button type="button" data-action="login-aba" data-aba="entrar">← voltar para entrar</button>'
+          : '<button type="button" data-action="login-aba" data-aba="esqueci">esqueci minha senha</button>'}
+      </div>
+      ${esqueci || nova ? '' : '<button type="button" class="virar" data-action="login-virar" data-aba="criar">ainda não tem ficha? <b>criar conta →</b></button>'}`;
+  }
+  function faceCriar(n) {
+    return `<div class="ficha-topo"><span>Nova ficha</span><span>nº ${n + 1}</span></div>
+      <p class="script">que bom te ver por aqui...</p>
+      <h1>Criar conta</h1>
+      <form class="form-login" data-modo="criar" novalidate>
+        ${linha('lg-nome', 'nome', 'name="nome" autocomplete="given-name" required')}
+        ${linha('lg-email2', 'e-mail', 'name="email" type="email" autocomplete="email" required')}
+        ${linha('lg-senha2', 'senha', 'name="senha" type="password" minlength="6" autocomplete="new-password" required placeholder="mín. 6 caracteres"')}
+        <p class="login-msg" role="status"></p>
+        <button class="btn olive login-btn" type="submit">Criar minha ficha</button>
+      </form>
+      <button type="button" class="virar" data-action="login-virar" data-aba="entrar"><b>← já tenho ficha</b>, quero entrar</button>`;
+  }
+
   function telaLogin(msg = '', tipo = '') {
     document.body.classList.add('deslogado');
     document.querySelectorAll('dialog[open]').forEach((d) => d.close());
-    const criar = abaLogin === 'criar', nova = abaLogin === 'nova-senha', esqueci = abaLogin === 'esqueci';
-    const titulo = criar ? 'Criar conta' : nova ? 'Nova senha' : esqueci ? 'Recuperar senha' : 'Entrar';
+    const n = 1000 + (hash(navigator.userAgent) % 8999);
+    const criar = abaLogin === 'criar';
     const fakes = [
       { titulo: 'Seu livro favorito', autor: 'você', cor: '#e8458b' },
       { titulo: 'A próxima leitura', autor: 'logo ali', cor: '#b8b23e' },
       { titulo: 'Aquela releitura', autor: 'de novo', cor: '#f2703d' },
+      { titulo: 'O que vem depois', autor: 'surpresa', cor: '#cdb0f0' },
     ];
+    const lombadas = Array.from({ length: 34 }, (_, i) => {
+      const c = PALETA[(i * 7) % PALETA.length];
+      return `<i style="--c:${c};--t:${textoSobre(c)};--h:${70 + (hash('h' + i) % 70)}px;--w:${20 + (hash('w' + i) % 18)}px;--d:${300 + i * 40}ms"></i>`;
+    }).join('');
     $('#app').innerHTML = `<section class="login mesh grain">
-      <div class="login-deco" aria-hidden="true">${fakes.map((f, i) => polaroidHTML(f, { r: [-9, 7, -4][i], fita: ['', 'olive', 'tang'][i] })).join('')}</div>
-      <div class="login-card">
-        <img class="login-logo" src="logo.png" alt="" width="120" height="120">
-        <p class="script">${criar ? 'que bom te ver por aqui...' : 'oi, leitora...'}</p>
-        <h1>Minhas Leituras</h1>
-        <p class="login-sub">Seu diário de leituras, salvo na sua conta e em qualquer aparelho.</p>
-        ${nova || esqueci ? '' : `<div class="seg login-abas" role="tablist">
-          <button type="button" class="${!criar ? 'ativo' : ''}" data-action="login-aba" data-aba="entrar">Entrar</button>
-          <button type="button" class="${criar ? 'ativo' : ''}" data-action="login-aba" data-aba="criar">Criar conta</button>
-        </div>`}
-        <form id="form-login" novalidate>
-          <h2 class="sr">${titulo}</h2>
-          ${criar ? `<div class="field"><label for="lg-nome">Como posso te chamar?</label><input id="lg-nome" name="nome" autocomplete="given-name" required></div>` : ''}
-          ${nova ? '' : `<div class="field"><label for="lg-email">E-mail</label><input id="lg-email" name="email" type="email" autocomplete="email" required></div>`}
-          ${esqueci ? '' : `<div class="field"><label for="lg-senha">${nova ? 'Nova senha' : 'Senha'}</label><input id="lg-senha" name="senha" type="password" minlength="6" autocomplete="${criar || nova ? 'new-password' : 'current-password'}" required>
-            ${criar || nova ? '<small class="muted">mínimo de 6 caracteres</small>' : ''}</div>`}
-          <p class="login-msg ${tipo}" role="status">${esc(msg)}</p>
-          <button class="btn hot login-btn" type="submit">${criar ? 'Criar minha conta' : nova ? 'Salvar nova senha' : esqueci ? 'Enviar link por e-mail' : 'Entrar'}</button>
-        </form>
-        <div class="login-links">
-          ${abaLogin === 'entrar' ? '<button type="button" data-action="login-aba" data-aba="esqueci">Esqueci minha senha</button>' : ''}
-          ${esqueci ? '<button type="button" data-action="login-aba" data-aba="entrar">← voltar para entrar</button>' : ''}
+      <div class="login-deco" aria-hidden="true">${fakes.map((f, i) => `<div class="deco-item" style="--prof:${[18, -24, 14, -12][i]}">${polaroidHTML(f, { r: [-9, 7, -5, 10][i], fita: ['', 'olive', 'tang', ''][i] })}</div>`).join('')}</div>
+      <div class="login-palco">
+        <img class="login-logo" src="logo.png" alt="" width="130" height="130">
+        <div class="ficha-wrap">
+          <div class="ficha ${criar ? 'virada' : ''}">
+            <div class="ficha-face frente" ${criar ? 'inert' : ''}>${faceEntrar(n)}</div>
+            <div class="ficha-face verso" ${criar ? '' : 'inert'}>${faceCriar(n)}</div>
+          </div>
+          <div class="bolso" aria-hidden="true"><span>biblioteca particular</span><b>Minhas Leituras</b><small>devolva com carinho ✿</small></div>
         </div>
       </div>
+      <div class="login-estante" aria-hidden="true">${lombadas}</div>
     </section>`;
-    $('#form-login input')?.focus();
+    if (msg) avisoNaFace(msg, tipo);
+    setTimeout(() => $('.ficha-face:not([inert]) input')?.focus({ preventScroll: true }), 900);
+    if (typeof Splash !== 'undefined') Splash.pronto();
+  }
+  function avisoNaFace(msg, tipo = 'erro') {
+    const p = $('.ficha-face:not([inert]) .login-msg'); if (!p) return;
+    p.textContent = msg; p.className = `login-msg ${tipo}`;
+  }
+  function virar(aba) {
+    abaLogin = aba;
+    const f = $('.ficha'); if (!f) return telaLogin();
+    f.classList.toggle('virada', aba === 'criar');
+    $('.ficha-face.frente').inert = aba === 'criar';
+    $('.ficha-face.verso').inert = aba !== 'criar';
+    setTimeout(() => $('.ficha-face:not([inert]) input')?.focus({ preventScroll: true }), 650);
+  }
+  function carimbar(texto) {
+    return new Promise((ok) => {
+      const face = $('.ficha-face:not([inert])'); if (!face) return ok();
+      const c = document.createElement('div');
+      c.className = 'carimbo';
+      const d = new Date();
+      c.innerHTML = `<b>${texto}</b><small>${String(d.getDate()).padStart(2, '0')} ${MESES[d.getMonth()].toUpperCase()} ${d.getFullYear()}</small>`;
+      face.appendChild(c);
+      $('.ficha').classList.add('carimbada');
+      setTimeout(ok, matchMedia('(prefers-reduced-motion: reduce)').matches ? 150 : 950);
+    });
   }
 
   async function enviarLogin(form) {
+    const modo = form.dataset.modo;
     const btn = form.querySelector('.login-btn');
     const email = form.email?.value.trim(), senha = form.senha?.value || '', nomeV = form.nome?.value.trim();
     const aviso = (m, t = 'erro') => { const p = form.querySelector('.login-msg'); p.textContent = m; p.className = `login-msg ${t}`; };
+    if (form.nome && !nomeV) return aviso('Me conta seu nome 🙂');
     if (form.email && !/^\S+@\S+\.\S+$/.test(email)) return aviso('Digite um e-mail válido.');
     if (form.senha && senha.length < 6) return aviso('A senha precisa ter pelo menos 6 caracteres.');
-    if (form.nome && !nomeV) return aviso('Me conta seu nome 🙂');
+    aviso('', '');
+    const texto = btn.textContent;
     btn.disabled = true; btn.innerHTML = '<span class="loading"></span>';
+    let liberar = () => {};
     try {
-      if (abaLogin === 'entrar') {
-        const { error } = await sb.auth.signInWithPassword({ email, password: senha });
-        if (error) throw error;
-      } else if (abaLogin === 'criar') {
-        const { data, error } = await sb.auth.signUp({ email, password: senha, options: { data: { nome: nomeV }, emailRedirectTo: location.origin + location.pathname } });
-        if (error) throw error;
-        if (!data.session) { abaLogin = 'entrar'; telaLogin('Conta criada! Enviei um link de confirmação para o seu e-mail — confirme e depois entre aqui.', 'ok'); return; }
-      } else if (abaLogin === 'esqueci') {
+      if (modo === 'entrar' || modo === 'criar') {
+        portao = new Promise((r) => { liberar = r; });
+        let sessao = null;
+        if (modo === 'entrar') {
+          const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
+          if (error) throw error; sessao = data.session;
+        } else {
+          const { data, error } = await sb.auth.signUp({ email, password: senha, options: { data: { nome: nomeV }, emailRedirectTo: location.origin + location.pathname } });
+          if (error) throw error; sessao = data.session;
+          if (!sessao) { liberar(); portao = null; abaLogin = 'entrar'; telaLogin('Ficha criada! Enviei um link de confirmação para o seu e-mail — confirme e depois entre aqui.', 'ok'); return; }
+        }
+        await carimbar(modo === 'criar' ? 'Ficha nova!' : 'Bem-vinda!');
+        if (typeof Splash !== 'undefined') Splash.mostrar();
+        liberar();
+        if (!usuario || usuario.id !== sessao?.user?.id) entrar(sessao);
+        return;
+      }
+      if (modo === 'esqueci') {
         const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
         if (error) throw error;
         abaLogin = 'entrar'; telaLogin('Se esse e-mail tiver conta, chega um link para criar uma nova senha.', 'ok'); return;
-      } else if (abaLogin === 'nova-senha') {
+      }
+      if (modo === 'nova-senha') {
         const { error } = await sb.auth.updateUser({ password: senha });
         if (error) throw error;
-        abaLogin = 'entrar'; toast('Senha alterada ✿'); await entrar((await sb.auth.getSession()).data.session); return;
+        await carimbar('Senha nova!');
+        abaLogin = 'entrar'; if (typeof Splash !== 'undefined') Splash.mostrar();
+        await entrar((await sb.auth.getSession()).data.session); return;
       }
     } catch (e) {
+      liberar(); portao = null;
       aviso(traduzir(e));
-      btn.disabled = false; btn.textContent = 'Tentar de novo';
+      btn.disabled = false; btn.textContent = texto;
+      form.closest('.ficha')?.classList.remove('treme'); void form.offsetWidth; form.closest('.ficha')?.classList.add('treme');
     }
   }
   function traduzir(e) {
@@ -209,14 +282,20 @@ const Nuvem = (() => {
   }
 
   /* ---------- sessão ---------- */
+  let entrando = false;
   async function entrar(sessao) {
+    if (portao) { await portao; portao = null; }
+    if (sessao?.user && usuario?.id === sessao.user.id && entrando) return;
     usuario = sessao?.user || null;
     if (!usuario) { telaLogin(); return; }
+    entrando = true;
     document.body.classList.remove('deslogado');
     $('#app').innerHTML = '<div class="carregando"><span class="loading"></span><p class="script">abrindo sua estante...</p></div>';
     try { await baixar(); }
     catch (e) { console.error(e); toast('Não consegui carregar seus livros. Confira a configuração do Supabase.', 'erro'); }
     aplicarTema(); atualizarConta(); render();
+    entrando = false;
+    if (typeof Splash !== 'undefined') Splash.pronto((nome() || '').split(' ')[0]);
     await oferecerMigracao();
   }
   async function sair() {
@@ -246,7 +325,7 @@ const Nuvem = (() => {
     sb.auth.onAuthStateChange((evento, sessao) => setTimeout(() => {
       if (evento === 'PASSWORD_RECOVERY') { abaLogin = 'nova-senha'; telaLogin('Escolha sua nova senha.', 'ok'); return; }
       if (evento === 'SIGNED_OUT') { usuario = null; db = { livros: [], metas: {}, tema: db.tema }; foto = vazio(); abaLogin = 'entrar'; atualizarConta(); telaLogin(); return; }
-      if (evento === 'SIGNED_IN' && (!usuario || usuario.id !== sessao?.user?.id) && !ignorarPrimeiro) entrar(sessao);
+      if (evento === 'SIGNED_IN' && (!usuario || usuario.id !== sessao?.user?.id) && !ignorarPrimeiro && !portao) entrar(sessao);
       if (evento === 'USER_UPDATED' && sessao) usuario = sessao.user;
     }, 0));
     const { data } = await sb.auth.getSession();
@@ -261,5 +340,6 @@ const Nuvem = (() => {
     get logado() { return !!usuario; },
     nome, iniciar, agendar, sair, telaLogin, enviarLogin,
     trocarAba(a) { abaLogin = a; telaLogin(); },
+    virar,
   };
 })();
