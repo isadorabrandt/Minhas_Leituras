@@ -584,7 +584,7 @@ function abrirFormLivro(id = null) {
   ui.resultados = [];
   const d = $('#modal-livro');
   d.innerHTML = `<form method="dialog" id="form-livro">
-    <div class="modal-head"><div><p class="script">${l ? 'mudando umas coisinhas...' : 'um livro novo na estante!'}</p><h2>${l ? 'Editar livro' : 'Novo livro'}</h2></div><button type="button" class="x" data-action="fechar" aria-label="Fechar">×</button></div>
+    <div class="modal-head"><div><p class="script">${l ? 'mudando umas coisinhas...' : 'um livro novo na estante!'}</p><h2>${l ? 'Editar livro' : 'Novo livro'}</h2></div><button type="button" class="x" data-action="fechar" aria-label="Fechar" autofocus>×</button></div>
     <div class="modal-body">
       <div class="field">
         <label for="q-online">Buscar dados e capa online</label>
@@ -627,7 +627,6 @@ function abrirFormLivro(id = null) {
         <div class="detalhes-lido" id="detalhes-lido" inert>
           <div class="detalhes-dentro">
             <p class="script detalhes-titulo">a ficha completa da leitura</p>
-            <p class="lbl" style="margin:0 0 6px">Critérios <span class="script" style="text-transform:none;font-size:.95rem;letter-spacing:0">clique na metade da estrela pra meia nota</span></p>
             <div class="crit-grid" style="margin-bottom:16px">${CRITERIOS.map(([k, t]) => `<div class="crit"><span>${t}</span>${starsHTML(0, { input: true, name: k, variant: 'blue' })}</div>`).join('')}</div>
             <div class="field"><label for="f-pers">Personagem favorito</label><input id="f-pers" name="personagem"></div>
             <div class="field"><label for="f-cit">Citação favorita</label><textarea id="f-cit" name="citacao" rows="2"></textarea></div>
@@ -645,7 +644,9 @@ function abrirFormLivro(id = null) {
   </form>`;
   atualizarPreviewCapa();
   d.showModal();
-  $('#f-titulo').focus();
+  // no computador já posiciona no título; no celular não abre o teclado sozinho
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) $('#f-titulo').focus();
+  else { document.activeElement?.blur(); d.scrollTop = 0; }
 }
 function atualizarPreviewCapa() {
   const f = $('#form-livro'); if (!f) return;
