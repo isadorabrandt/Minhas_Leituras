@@ -121,7 +121,7 @@ const rot = (id, amp = 3) => ((hash(id) % 7) - 3) * (amp / 3);
 
 function capaHTML(l, extra = '') {
   const cor = corDe(l);
-  if (l.capa) return `<div class="cover ${extra}" style="--c:${cor}"><img src="${esc(l.capa)}" alt="Capa de ${esc(l.titulo)}" loading="lazy" referrerpolicy="no-referrer"></div>`;
+  if (l.capa) return `<div class="cover ${extra}" style="--c:${cor}" data-t="${esc(l.titulo)}" data-a="${esc(l.autor)}" data-c="${esc(l.cor || '')}"><img src="${esc(l.capa)}" alt="Capa de ${esc(l.titulo)}" loading="lazy" referrerpolicy="no-referrer"></div>`;
   return `<div class="cover gen ${extra}" style="--c:${cor};--t:${textoSobre(cor)}"><span class="gt">${esc(l.titulo)}</span><span class="orn">${ORNAMENTOS[hash(l.titulo) % ORNAMENTOS.length]}</span><span class="ga">${esc(l.autor)}</span></div>`;
 }
 function polaroidHTML(l, { r = rot(l.id || l.titulo, 5), fita = '', legenda = true } = {}) {
@@ -281,7 +281,8 @@ function viewInicio() {
   </div></section>` : ''}
 
   <section class="secao wrap">
-    <div class="secao-titulo"><h2>Na fila de <span class="hl-hot">quero ler</span></h2><span class="script">${fila.length ? `${fila.length} ${fila.length === 1 ? 'livro esperando' : 'livros esperando'} por você` : 'sua lista de desejos está vazia'}</span></div>
+    <div class="secao-titulo"><h2>Na fila de <span class="hl-hot">quero ler</span></h2><span class="script">${fila.length ? `${fila.length} ${fila.length === 1 ? 'livro esperando' : 'livros esperando'} por você` : 'sua lista de desejos está vazia'}</span>
+      ${fila.length > 1 ? `<button type="button" class="btn tang btn-roleta" data-action="roleta"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>Sortear minha próxima leitura</button>` : ''}</div>
     ${fila.length ? `<div class="cards3">${fila.map((l, i) => `
       <article class="card-oferta" data-action="abrir" data-id="${l.id}" tabindex="0">
         <div class="escudo">${capaHTML(l)}</div>
@@ -588,7 +589,8 @@ function abrirFormLivro(id = null) {
       <div class="field">
         <label for="q-online">Buscar dados e capa online</label>
         <div class="busca-online"><input id="q-online" type="search" placeholder="Ex.: Torto Arado" value="${esc(l?.titulo || '')}">
-          <button type="button" class="btn" data-action="buscar-online">Buscar</button></div>
+          <button type="button" class="btn" data-action="buscar-online">Buscar</button>
+          <button type="button" class="btn olive btn-scan" data-action="escanear" aria-label="Escanear código de barras" title="Escanear código de barras"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8"/></svg><span class="txt">Escanear</span></button></div>
         <div class="resultados" id="resultados"></div>
       </div>
       <div class="capa-editor">

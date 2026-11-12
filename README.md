@@ -11,6 +11,9 @@ critérios por livro e **releituras que não sobrescrevem as avaliações anteri
 - **Estante**: lombadas em prateleiras (passe o mouse para “puxar” o livro) ou grade de capas; filtros, busca e ordenação
 - **Início**: lendo agora com progresso por página, meta anual, livros por mês, gêneros, citação favorita, fila de “quero ler”
 - **Diário**: linha do tempo por ano/mês de todas as leituras
+- **Importar planilha**: CSV do Goodreads, do Skoob ou qualquer planilha (Título, Autor, Nota, Status, Data de leitura), com prévia e sem duplicar livros
+- **Escanear código de barras**: aponte a câmera para o ISBN no verso do livro (ou digite) e o app preenche título, autor, páginas e capa
+- **Roleta da fila**: sorteia a próxima leitura entre os livros de "quero ler"
 - Tema claro/escuro, backup em JSON (exportar/importar), funciona no celular
 
 ## Contas e banco de dados (Supabase)

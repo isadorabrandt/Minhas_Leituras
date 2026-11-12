@@ -41,6 +41,7 @@
         <div class="menu-pop">
           <div id="conta" class="conta" hidden><span class="script">conectada como</span><span class="conta-email"></span></div>
           <button data-action="exportar">Exportar backup (.json)</button>
+          <button data-action="importar-planilha">Importar planilha (Skoob, Goodreads)</button>
           <button data-action="importar">Importar backup</button>
           <button data-action="exemplos">Carregar livros de exemplo</button>
           <hr>
@@ -57,6 +58,9 @@
   <dialog id="modal-detalhe" class="modal wide"></dialog>
   <dialog id="modal-livro" class="modal"></dialog>
   <dialog id="modal-leitura" class="modal"></dialog>
+  <dialog id="modal-importar" class="modal wide-md"></dialog>
+  <dialog id="modal-scanner" class="modal"></dialog>
+  <dialog id="modal-roleta" class="modal"></dialog>
 
   <input type="file" id="importar-arquivo" accept="application/json,.json" hidden>
   <div id="toasts" aria-live="polite"></div>
@@ -64,5 +68,6 @@
   <script src="config.js"></script>
   <script src="nuvem.js"></script>
   <script src="app.js"></script>
+  <script src="extras.js"></script>
 </body>
 </html>
