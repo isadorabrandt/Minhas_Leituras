@@ -204,7 +204,7 @@ function viewInicio() {
       </div>
     </div>
     <div class="hero-art">
-      ${arte.map((l, i) => `<button style="all:unset;cursor:pointer" data-action="abrir" data-id="${l.id}">${polaroidHTML(l, { r: i ? 6 : -7, fita: i ? 'olive' : '' })}</button>`).join('')}
+      ${arte.map((l, i) => `<button class="hero-livro" data-action="abrir" aria-label="Abrir ${esc(l.titulo)}" data-id="${l.id}">${polaroidHTML(l, { r: i ? 6 : -7, fita: i ? 'olive' : '' })}</button>`).join('')}
       ${seloHTML(lendo.length ? 'lendo agora' : 'quero ler', lendo.length || fila.length)}
     </div>
   </section>
@@ -237,11 +237,11 @@ function viewInicio() {
   </section>
 
   <section class="secao wrap">
-    <div class="secao-titulo"><h2>Uma pilha por mês</h2><span class="script">cada livrinho é uma leitura terminada — passe o mouse</span></div>
+    <div class="secao-titulo"><h2>Uma pilha por mês</h2><span class="script">cada livrinho é uma leitura terminada — <span class="so-mouse">passe o mouse</span><span class="so-toque">toque nele</span></span></div>
     <div class="pilhas">${porMes.map((itens, i) => `
       <div class="pilha ${i === mesAgora ? 'agora' : ''}">
         <small>${MESES[i]}</small>
-        ${itens.length ? itens.map((x, k) => `<i class="livrinho" data-t="${esc(x.livro.titulo)}${x.leitura.estrelas ? ' ★' + fmtNota(x.leitura.estrelas) : ''}" style="--c:${corDe(x.livro)};width:${70 + (hash(x.livro.id) % 30)}%;animation-delay:${i * 50 + k * 90}ms"></i>`).join('') : '<i class="vazia"></i>'}
+        ${itens.length ? itens.map((x, k) => `<i class="livrinho" tabindex="0" data-t="${esc(x.livro.titulo)}${x.leitura.estrelas ? ' ★' + fmtNota(x.leitura.estrelas) : ''}" style="--c:${corDe(x.livro)};width:${70 + (hash(x.livro.id) % 30)}%;animation-delay:${i * 50 + k * 90}ms"></i>`).join('') : '<i class="vazia"></i>'}
         ${itens.length ? `<span class="num">${itens.length}</span>` : ''}
       </div>`).join('')}
     </div>
@@ -299,7 +299,7 @@ function viewEstante() {
   return `
   <section class="cabecalho mesh grain">
     <div><p class="script">sua biblioteca particular...</p><h1>A <span class="hl-hot">estante</span></h1>
-      <p>Passe o mouse nas lombadas para puxar o livro da prateleira. Clique para abrir o diário dele.</p></div>
+      <p><span class="so-mouse">Passe o mouse nas lombadas para puxar o livro da prateleira. Clique para abrir o diário dele.</span><span class="so-toque">Toque numa lombada para abrir o diário do livro.</span></p></div>
     ${seloHTML(`${db.livros.length} livros`, '📚')}
   </section>
   <div class="wrap">
@@ -456,7 +456,7 @@ function renderDetalhe() {
     return `${i ? '<span class="seta">→</span>' : ''}<span class="ev">${ordinal(numeroLeitura(l, x))} ★ ${fmtNota(x.estrelas)}${d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${fmtNota(Math.abs(d))}</span>` : ''}</span>`;
   }).join('')}</div>` : '';
 
-  $('#modal-detalhe').innerHTML = `<div class="detalhe">
+  $('#modal-detalhe').innerHTML = `<div class="detalhe"><div class="x-wrap"><button class="x" data-action="fechar" aria-label="Fechar">×</button></div>
     <aside class="detalhe-side mesh grain">
       <div class="capa-area">${polaroidHTML(l, { r: -4 })}${seloHTML(STATUS_TXT[st].toLowerCase(), st === 'lido' ? '✓' : st === 'lendo' ? '📖' : '♡')}</div>
       ${progresso}
@@ -466,7 +466,6 @@ function renderDetalhe() {
       </div>
     </aside>
     <div class="detalhe-main">
-      <button class="x" data-action="fechar" aria-label="Fechar">×</button>
       <p class="script genero">${[l.genero, l.paginas ? `${l.paginas} páginas` : ''].filter(Boolean).map(esc).join(' · ') || 'um livro'}</p>
       <h2>${esc(l.titulo)}</h2>
       <p class="autor">${esc(l.autor) || 'Autor desconhecido'}</p>
@@ -497,7 +496,7 @@ function paginaLeitura(l, x, ord) {
     ${x.personagem ? `<div class="jrow"><span class="jlbl">personagem fav.</span><span class="jval">${esc(x.personagem)}</span></div>` : ''}
     ${x.citacao ? `<div class="jrow"><span class="jlbl">citação fav.</span><blockquote>“${esc(x.citacao)}”</blockquote></div>` : ''}
     ${x.notas ? `<div class="jrow"><span class="jlbl">impressões</span><div class="notas">${esc(x.notas)}</div></div>` : ''}
-    ${x.recomenda != null ? `<div class="jrow"><span class="jlbl">recomendaria?</span><span class="rec sim ${x.recomenda ? 'on' : ''}">✓</span><span class="rec nao ${x.recomenda ? '' : 'on'}">✕</span></div>` : ''}
+    ${x.recomenda != null ? `<div class="jrow"><span class="jlbl">recomendaria?</span><span class="recs"><span class="rec sim ${x.recomenda ? 'on' : ''}">✓</span><span class="rec nao ${x.recomenda ? '' : 'on'}">✕</span></span></div>` : ''}
   </div>
   <div class="leitura-acoes">
     <button class="btn small pink" data-action="editar-leitura" data-id="${l.id}" data-lid="${x.id}">✎ ${x.fim ? 'Editar esta avaliação' : 'Editar leitura'}</button>
