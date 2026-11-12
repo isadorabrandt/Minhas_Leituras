@@ -1100,3 +1100,14 @@ body.deslogado main { padding: 0; }
   body.nav-oculta .tabs, body.nav-oculta .btn-novo { transform: translateY(calc(100% + 30px + env(safe-area-inset-bottom))); opacity: 0; pointer-events: none; }
   body.nav-oculta #toasts { bottom: calc(20px + env(safe-area-inset-bottom)); }
 }
+
+/* resultados da busca */
+.resultados { max-height: 420px; }
+.resultados-info { grid-column: 1 / -1; margin: 0; font-size: .8rem; font-weight: 800; color: var(--muted); }
+.resultados .sem-capa { aspect-ratio: 2/3; border-radius: 6px; margin-bottom: 4px; border: 2px solid var(--stroke); }
+.resultados .mais-resultados { grid-column: 1 / -1; justify-self: center; margin: 6px 0 4px; }
+#carregando-mais { grid-column: 1 / -1; justify-self: center; }
+.resultados .mais-resultados { padding: 9px 18px; font-size: .72rem; text-align: center; background: var(--olive); color: var(--olive-ink); }
+.seg-rec label, .check-crit { position: relative; }
+.seg-rec input { width: 1px; height: 1px; left: 0; top: 0; }
+.radio-cards input { left: 0; top: 0; width: 1px; height: 1px; margin: 0; }

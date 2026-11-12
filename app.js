@@ -174,6 +174,17 @@ function viewVazia() {
   </section></div>`;
 }
 
+/* Uma citação diferente por dia: embaralha de forma fixa as citações da pessoa
+   e anda uma posição por dia, passando por todas antes de repetir. */
+function citacaoDoDia(lista) {
+  const unicas = [...new Map(lista.map((x) => [x.leitura.citacao.trim().toLowerCase(), x])).values()];
+  if (!unicas.length) return null;
+  const ordem = unicas.map((x) => [hash(x.leitura.id + ':citacao'), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
+  const d = new Date();
+  const dia = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+  return ordem[dia % ordem.length];
+}
+
 /* ----- Início ----- */
 function viewInicio() {
   const ano = ui.ano;
@@ -198,7 +209,7 @@ function viewInicio() {
   const generos = Object.entries(gen).sort((a, b) => b[1] - a[1]);
 
   const citacoes = todas.filter((x) => x.leitura.citacao);
-  const cit = citacoes.length ? citacoes[(new Date().getDate() + citacoes.length) % citacoes.length] : null;
+  const cit = citacaoDoDia(citacoes);
   const h = new Date().getHours();
   const quem = primeiroNome();
   const saud = `${h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'}, ${quem}...`;
@@ -264,7 +275,7 @@ function viewInicio() {
   </section>
 
   ${cit ? `<section class="secao mesh dark grain wavy citacao"><div class="wrap">
-    <span class="script">uma frase que ficou...</span>
+    <span class="script">a citação do dia...</span>
     <blockquote>“${esc(cit.leitura.citacao)}”</blockquote>
     <p>— ${esc(cit.livro.titulo)}${cit.livro.autor ? `, ${esc(cit.livro.autor)}` : ''}</p>
   </div></section>` : ''}
@@ -710,29 +721,72 @@ async function definirCapa(src, cors) {
   ui.formLivro.capa = r.src; ui.formLivro.cor = r.cor || ui.formLivro.cor;
   atualizarPreviewCapa();
 }
-async function buscarOnline() {
-  const q = $('#q-online').value.trim(); if (!q) return;
-  const box = $('#resultados'); box.innerHTML = '<span class="loading"></span>';
-  const enc = encodeURIComponent(q);
-  const [gb, ol] = await Promise.allSettled([
-    fetch(`https://www.googleapis.com/books/v1/volumes?q=${enc}&maxResults=12&printType=books`).then((r) => r.json()),
-    fetch(`https://openlibrary.org/search.json?q=${enc}&limit=10&fields=title,author_name,cover_i,number_of_pages_median,subject`).then((r) => r.json()),
+/* Busca em várias fontes (Google Books geral + edições em português, Open Library),
+   tira repetidos e permite carregar mais páginas. */
+const POR_PAGINA = 40;
+const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const chaveLivro = (r) => semAcento(r.titulo).split(/[:(\-–]/)[0].replace(/[^a-z0-9]+/g, ' ').trim() + '|' + semAcento((r.autor || '').split(',')[0]).replace(/[^a-z]+/g, '');
+function comTempo(url, ms = 10000) {
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { signal: c.signal }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).finally(() => clearTimeout(t));
+}
+function doGoogle(v = {}) {
+  const t = v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail;
+  return { titulo: v.subtitle && v.title.length < 25 ? `${v.title}: ${v.subtitle}` : v.title, autor: (v.authors || []).join(', '), paginas: v.pageCount || '',
+    genero: generoDe(v.categories), ano: (v.publishedDate || '').slice(0, 4),
+    capa: t ? t.replace('http:', 'https:').replace('&edge=curl', '') : '' };
+}
+async function buscarOnline(mais = false) {
+  const box = $('#resultados'); if (!box) return;
+  if (!mais) {
+    const q = $('#q-online').value.trim(); if (!q) return;
+    ui.busca = { q, pagina: 0, vistos: new Set(), temMais: true, token: Symbol() };
+    ui.resultados = [];
+    box.innerHTML = '<span class="loading"></span>';
+  } else {
+    if (!ui.busca?.temMais) return;
+    ui.busca.pagina++;
+    $('#mais-resultados')?.replaceWith(Object.assign(document.createElement('span'), { className: 'loading', id: 'carregando-mais' }));
+  }
+  const { q, pagina, token } = ui.busca;
+  const enc = encodeURIComponent(q), inicio = pagina * POR_PAGINA;
+  const fontes = await Promise.allSettled([
+    comTempo(`https://www.googleapis.com/books/v1/volumes?q=${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&orderBy=relevance`),
+    comTempo(`https://www.googleapis.com/books/v1/volumes?q=${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&langRestrict=pt`),
+    comTempo(`https://openlibrary.org/search.json?q=${enc}&limit=${POR_PAGINA}&page=${pagina + 1}&fields=title,author_name,cover_i,number_of_pages_median,subject,first_publish_year`),
   ]);
-  const res = [];
-  if (gb.status === 'fulfilled') (gb.value.items || []).forEach(({ volumeInfo: v = {} }) => {
-    const t = v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail;
-    res.push({ titulo: v.title, autor: (v.authors || []).join(', '), paginas: v.pageCount || '', genero: generoDe(v.categories), idioma: v.language,
-      capa: t ? t.replace('http:', 'https:').replace('&edge=curl', '') : '' });
-  });
-  if (ol.status === 'fulfilled') (ol.value.docs || []).forEach((d) => res.push({
-    titulo: d.title, autor: (d.author_name || []).slice(0, 2).join(', '), paginas: d.number_of_pages_median || '', genero: generoDe((d.subject || []).slice(0, 12)),
+  if (ui.busca?.token !== token) return; // a pessoa já buscou outra coisa
+  const novos = [];
+  const [gb, gbPt, ol] = fontes;
+  const lista = [];
+  if (gbPt.status === 'fulfilled') (gbPt.value.items || []).forEach((it) => lista.push(doGoogle(it.volumeInfo)));
+  if (gb.status === 'fulfilled') (gb.value.items || []).forEach((it) => lista.push(doGoogle(it.volumeInfo)));
+  if (ol.status === 'fulfilled') (ol.value.docs || []).forEach((d) => lista.push({
+    titulo: d.title, autor: (d.author_name || []).slice(0, 2).join(', '), paginas: d.number_of_pages_median || '',
+    genero: generoDe((d.subject || []).slice(0, 12)), ano: d.first_publish_year ? String(d.first_publish_year) : '',
     capa: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : '',
   }));
-  ui.resultados = res.filter((r) => r.titulo);
-  if (!ui.resultados.length) { box.innerHTML = '<p class="muted" style="grid-column:1/-1">Nada encontrado. Preencha manualmente 🙂</p>'; return; }
-  box.innerHTML = ui.resultados.map((r, i) => `<button type="button" data-action="escolher-resultado" data-i="${i}">
-    ${r.capa ? `<img src="${esc(r.capa)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div style="aspect-ratio:2/3;border-radius:4px;margin-bottom:4px;background:${PALETA[i % PALETA.length]}"></div>`}
-    <b>${esc(r.titulo).slice(0, 40)}</b><br><span class="muted">${esc(r.autor).slice(0, 30)}</span>${r.genero ? `<br><span class="pill" style="margin-top:4px;font-size:.55rem">${esc(r.genero)}</span>` : ''}</button>`).join('');
+  const porChave = new Map(ui.resultados.map((r) => [chaveLivro(r), r]));
+  lista.filter((r) => r.titulo).forEach((r) => {
+    const k = chaveLivro(r);
+    const ja = porChave.get(k);
+    if (ja) { for (const c of ['capa', 'paginas', 'genero', 'ano']) if (!ja[c] && r[c]) ja[c] = r[c]; return; }
+    porChave.set(k, r); novos.push(r);
+  });
+  novos.sort((a, b) => (b.capa ? 1 : 0) - (a.capa ? 1 : 0));
+  ui.resultados.push(...novos);
+  const cheia = (f, campo) => f.status === 'fulfilled' && (f.value[campo] || []).length >= POR_PAGINA;
+  ui.busca.temMais = (cheia(gb, 'items') || cheia(gbPt, 'items') || cheia(ol, 'docs')) && pagina < 9;
+  if (!ui.resultados.length) {
+    const falhou = fontes.every((f) => f.status === 'rejected');
+    box.innerHTML = `<p class="muted" style="grid-column:1/-1">${falhou ? 'Não consegui falar com as bibliotecas online agora. Tente de novo em instantes.' : 'Nada encontrado. Tente outro termo ou preencha à mão 🙂'}</p>`;
+    return;
+  }
+  box.innerHTML = `<p class="resultados-info">${ui.resultados.length} livros encontrados${ui.busca.temMais ? '' : ' — fim da lista'}</p>`
+    + ui.resultados.map((r, i) => `<button type="button" data-action="escolher-resultado" data-i="${i}">
+    ${r.capa ? `<img src="${esc(r.capa)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="sem-capa" style="background:${PALETA[i % PALETA.length]}"></div>`}
+    <b>${esc(r.titulo).slice(0, 48)}</b><br><span class="muted">${esc(r.autor).slice(0, 30)}${r.ano ? ` · ${esc(r.ano)}` : ''}</span>${r.genero ? `<br><span class="pill" style="margin-top:4px;font-size:.55rem">${esc(r.genero)}</span>` : ''}</button>`).join('')
+    + (ui.busca.temMais ? '<button type="button" class="btn small mais-resultados" id="mais-resultados" data-action="mais-resultados">Ver mais livros</button>' : '');
 }
 function escolherResultado(i) {
   const r = ui.resultados[i]; const f = $('#form-livro'); if (!r || !f) return;
@@ -871,6 +925,7 @@ const acoes = {
   fechar: (t) => t.closest('dialog').close(),
   'buscar-online': () => buscarOnline(),
   'escolher-resultado': (t) => escolherResultado(+t.dataset.i),
+  'mais-resultados': () => buscarOnline(true),
   'capa-url': () => { const u = prompt('Cole o link (URL) da imagem da capa:'); if (u) definirCapa(u.trim(), true); },
   'remover-capa': () => { ui.formLivro.capa = ''; ui.formLivro.cor = ''; atualizarPreviewCapa(); },
   tema: () => {
