@@ -148,11 +148,16 @@ function renderFaixas() {
     : '✿ seu diário de leituras começa aqui ✿';
 }
 
+function primeiroNome() {
+  const n = (Nuvem.nome() || '').trim().split(/\s+/)[0];
+  return n ? esc(n.charAt(0).toUpperCase() + n.slice(1)) : 'leitora';
+}
+
 function viewVazia() {
   const fakes = [{ titulo: 'Seu próximo livro', autor: 'você', cor: '#e8458b' }, { titulo: 'Aquele que você ama', autor: 'releitura', cor: '#b8b23e' }];
   return `<div class="view"><section class="hero mesh grain">
     <div>
-      <p class="script">Oi, leitora...</p>
+      <p class="script">Oi, ${primeiroNome()}...</p>
       <h1>Sua estante deveria ser <span class="hl-olive">leve</span>, <span class="hl-hot">bonita</span> &amp; <span class="hl-tang">sua</span></h1>
       <p class="lead">Cadastre o que você já leu, está lendo e quer ler. Dê estrelas, guarde citações e registre releituras sem perder as avaliações antigas.</p>
       <div class="hero-acoes">
@@ -190,7 +195,7 @@ function viewInicio() {
   const citacoes = todas.filter((x) => x.leitura.citacao);
   const cit = citacoes.length ? citacoes[(new Date().getDate() + citacoes.length) % citacoes.length] : null;
   const h = new Date().getHours();
-  const quem = Nuvem.nome() ? esc(Nuvem.nome().split(' ')[0]) : 'leitora';
+  const quem = primeiroNome();
   const saud = `${h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'}, ${quem}...`;
   const nomes = lendo.slice(0, 2).map((l) => `<b>${esc(l.titulo)}</b>`).join(' &amp; ');
   const arte = (lendo.length ? lendo : fila).slice(0, 2);
