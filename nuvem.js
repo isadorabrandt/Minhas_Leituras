@@ -130,7 +130,12 @@ const Nuvem = (() => {
   /* ---------- tela de login: ficha de biblioteca ---------- */
   let portao = null; // segura a troca de tela enquanto o carimbo anima
 
-  const linha = (id, rotulo, attrs, extra = '') => `<div class="linha ${extra}"><label for="${id}">${rotulo}</label><input id="${id}" ${attrs}></div>`;
+  const OLHO = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path class="risco" d="M4 4l16 16"/></svg>';
+  const linha = (id, rotulo, attrs, extra = '') => {
+    const senha = attrs.includes('type="password"');
+    return `<div class="linha ${extra} ${senha ? 'com-olho' : ''}"><label for="${id}">${rotulo}</label><input id="${id}" ${attrs}>${senha
+      ? `<button type="button" class="ver-senha" data-action="ver-senha" data-alvo="${id}" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">${OLHO}</button>` : ''}</div>`;
+  };
 
   function faceEntrar(n) {
     const esqueci = abaLogin === 'esqueci', nova = abaLogin === 'nova-senha';

@@ -1078,3 +1078,17 @@ body.deslogado main { padding: 0; }
   animation: entrar .45s .1s both;
 }
 .detalhes-titulo { font-size: 1.25rem; margin: 0 0 10px; text-align: center; }
+
+/* mostrar/esconder senha */
+.linha.com-olho { grid-template-columns: 92px 1fr auto; }
+.ver-senha {
+  align-self: center; display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 2px; padding: 0;
+  border: 2px solid var(--stroke); border-radius: 50%; background: var(--paper); color: var(--wine-2);
+  box-shadow: 2px 2px 0 var(--stroke); transition: transform .3s cubic-bezier(.3,1.8,.5,1), background .2s;
+}
+:root[data-theme="dark"] .ver-senha { color: var(--ink); }
+.ver-senha:hover { transform: rotate(-10deg) scale(1.08); background: var(--blush); }
+.ver-senha[aria-pressed="true"] { background: var(--pink); color: #3d0a1f; }
+.ver-senha .risco { transition: opacity .2s; }
+.ver-senha[aria-pressed="true"] .risco { opacity: 0; }
+@media (max-width: 700px) { .linha.com-olho { grid-template-columns: 74px 1fr auto; } }

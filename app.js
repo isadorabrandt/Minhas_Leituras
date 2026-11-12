@@ -889,6 +889,13 @@ const acoes = {
   },
   'login-aba': (t) => Nuvem.trocarAba(t.dataset.aba),
   'login-virar': (t) => Nuvem.virar(t.dataset.aba),
+  'ver-senha': (t) => {
+    const i = document.getElementById(t.dataset.alvo); if (!i) return;
+    const mostrar = i.type === 'password';
+    i.type = mostrar ? 'text' : 'password';
+    t.setAttribute('aria-pressed', mostrar); t.setAttribute('aria-label', mostrar ? 'Esconder senha' : 'Mostrar senha'); t.title = t.getAttribute('aria-label');
+    i.focus({ preventScroll: true }); const fim = i.value.length; try { i.setSelectionRange(fim, fim); } catch (e) { /* ignora */ }
+  },
   sair: () => { fecharMenu(); Nuvem.sair(); },
   limpar: () => { if (confirm(`Apagar TODOS os livros e leituras${Nuvem.ativo ? ' da sua conta' : ''}? Exporte um backup antes.`)) { db.livros = []; salvar(); render(); } fecharMenu(); },
 };
