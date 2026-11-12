@@ -156,8 +156,8 @@ function viewVazia() {
       <h1>Sua estante deveria ser <span class="hl-olive">leve</span>, <span class="hl-hot">bonita</span> &amp; <span class="hl-tang">sua</span></h1>
       <p class="lead">Cadastre o que você já leu, está lendo e quer ler. Dê estrelas, guarde citações e registre releituras sem perder as avaliações antigas.</p>
       <div class="hero-acoes">
-        <button class="btn olive" data-action="novo-livro" data-cursor="bora!">＋ Primeiro livro</button>
-        <button class="btn" data-action="exemplos" data-cursor="espiar">Ver com exemplos</button>
+        <button class="btn olive" data-action="novo-livro">＋ Primeiro livro</button>
+        <button class="btn" data-action="exemplos">Ver com exemplos</button>
       </div>
     </div>
     <div class="hero-art">${fakes.map((f) => polaroidHTML(f, { r: 0 })).join('')}${seloHTML('diário de leituras', '📖')}</div>
@@ -203,12 +203,12 @@ function viewInicio() {
       <p class="lead">${lendo.length ? `Agora mesmo você está com ${nomes} nas mãos.` : 'Nenhum livro aberto agora — que tal escolher um da fila?'}
         ${db.livros.length} livros na estante e ${todas.filter((x) => x.leitura.fim).length} leituras concluídas desde sempre.</p>
       <div class="hero-acoes">
-        <button class="btn olive" data-action="novo-livro" data-cursor="novo!">＋ Novo livro</button>
-        <button class="btn" data-action="nav" data-view="estante" data-cursor="ver">Abrir a estante</button>
+        <button class="btn olive" data-action="novo-livro">＋ Novo livro</button>
+        <button class="btn" data-action="nav" data-view="estante">Abrir a estante</button>
       </div>
     </div>
     <div class="hero-art">
-      ${arte.map((l, i) => `<button style="all:unset;cursor:pointer" data-action="abrir" data-id="${l.id}" data-cursor="abrir">${polaroidHTML(l, { r: i ? 6 : -7, fita: i ? 'olive' : '' })}</button>`).join('')}
+      ${arte.map((l, i) => `<button style="all:unset;cursor:pointer" data-action="abrir" data-id="${l.id}">${polaroidHTML(l, { r: i ? 6 : -7, fita: i ? 'olive' : '' })}</button>`).join('')}
       ${seloHTML(lendo.length ? 'lendo agora' : 'quero ler', lendo.length || fila.length)}
     </div>
   </section>
@@ -261,13 +261,13 @@ function viewInicio() {
   <section class="secao wrap">
     <div class="secao-titulo"><h2>Na fila de <span class="hl-hot">quero ler</span></h2><span class="script">${fila.length ? `${fila.length} ${fila.length === 1 ? 'livro esperando' : 'livros esperando'} por você` : 'sua lista de desejos está vazia'}</span></div>
     ${fila.length ? `<div class="cards3">${fila.map((l, i) => `
-      <article class="card-oferta" data-action="abrir" data-id="${l.id}" data-cursor="abrir" tabindex="0">
+      <article class="card-oferta" data-action="abrir" data-id="${l.id}" tabindex="0">
         <div class="escudo">${capaHTML(l)}</div>
         <span class="script">${esc(l.genero || 'quero ler')}</span>
         <h3>${esc(l.titulo)}</h3>
         <p>${esc(l.autor)}${l.paginas ? ` · ${l.paginas} páginas` : ''}</p>
         <span class="spacer"></span>
-        <button class="btn small ${corBtn[i % 4]}" data-action="comecar" data-id="${l.id}" data-cursor="ler!">Começar a ler</button>
+        <button class="btn small ${corBtn[i % 4]}" data-action="comecar" data-id="${l.id}">Começar a ler</button>
       </article>`).join('')}</div>`
       : `<div style="text-align:center"><button class="btn pink" data-action="novo-livro">＋ Adicionar desejo</button></div>`}
   </section>`;
@@ -280,7 +280,7 @@ function cardLendo(l) {
   const pag = Math.min(+lt.paginaAtual || 0, tot || Infinity);
   const pct = tot ? Math.round((pag / tot) * 100) : 0;
   const d = dias(lt.inicio, hoje());
-  return `<article class="card-oferta" data-action="abrir" data-id="${l.id}" data-cursor="abrir" tabindex="0">
+  return `<article class="card-oferta" data-action="abrir" data-id="${l.id}" tabindex="0">
     <div class="escudo">${capaHTML(l)}</div>
     <span class="script">${n > 1 ? `${ordinal(n)} leitura · ` : ''}${d === 1 ? 'começou hoje' : `há ${d} dias`}</span>
     <h3>${esc(l.titulo)}</h3>
@@ -291,7 +291,7 @@ function cardLendo(l) {
       <span>${tot ? `de ${tot} · <b>${pct}%</b>` : ''}</span>
     </div>
     <span class="spacer"></span>
-    <button class="btn small hot" data-action="concluir" data-id="${l.id}" data-cursor="eba!">Terminei!</button>
+    <button class="btn small hot" data-action="concluir" data-id="${l.id}">Terminei!</button>
   </article>`;
 }
 
@@ -367,7 +367,7 @@ function lombadaHTML(l) {
   const w = Math.round(32 + (p / 1000) * 26);
   const cor = corDe(l);
   const releu = concluidas(l).length > 1;
-  return `<button class="spine" data-action="abrir" data-id="${l.id}" data-cursor="abrir" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
+  return `<button class="spine" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
       aria-label="${esc(l.titulo)} — ${esc(l.autor)}">
     <span class="faixa f1"></span><span class="faixa f2"></span>
     ${status(l) === 'lendo' ? '<span class="marcador"></span>' : ''}
@@ -380,7 +380,7 @@ function capaCardHTML(l, i) {
   const nota = notaAtual(l);
   const n = concluidas(l).length;
   const fitas = ['', 'olive', 'tang'];
-  return `<button class="capa-card" data-action="abrir" data-id="${l.id}" data-cursor="abrir">
+  return `<button class="capa-card" data-action="abrir" data-id="${l.id}">
     ${polaroidHTML(l, { fita: fitas[hash(l.id) % 3], legenda: false })}
     <div class="badges">${status(l) !== 'lido' ? pillStatus(l) : ''}${n > 1 ? `<span class="pill reler">↻ ${n}x</span>` : ''}</div>
     <div class="info"><strong>${esc(l.titulo)}</strong><small>${esc(l.autor)}</small>${nota ? starsHTML(nota, { size: 'sm' }) : ''}</div>
@@ -417,7 +417,7 @@ function itemDiario({ livro, leitura, n }, i) {
   const det = leitura.fim
     ? `${fmtData(leitura.inicio)} → ${fmtData(leitura.fim)} · ${dias(leitura.inicio, leitura.fim)} dias`
     : `desde ${fmtData(leitura.inicio)} · pág. ${leitura.paginaAtual || 0}${livro.paginas ? ` de ${livro.paginas}` : ''}`;
-  return `<article class="t-item ${i % 2 ? 'dir' : ''}" data-action="abrir" data-id="${livro.id}" data-lid="${leitura.id}" data-cursor="abrir" tabindex="0">
+  return `<article class="t-item ${i % 2 ? 'dir' : ''}" data-action="abrir" data-id="${livro.id}" data-lid="${leitura.id}" tabindex="0">
     <div class="tilt">${capaHTML(livro)}</div>
     <div><h4>${esc(livro.titulo)}</h4><p>${esc(livro.autor)} · ${det}</p>
       <div class="t-badges">${n > 1 ? `<span class="pill reler">${ordinal(n)} leitura</span>` : ''}${leitura.fim ? (leitura.estrelas ? starsHTML(leitura.estrelas, { size: 'sm' }) : '<span class="pill">sem nota</span>') : '<span class="pill lendo">Lendo</span>'}</div>
@@ -445,7 +445,7 @@ function renderDetalhe() {
   if (st === 'quero') acoes = `<button class="btn hot" data-action="comecar" data-id="${l.id}">▶ Começar a ler</button>
       <button class="btn" data-action="leitura-passada" data-id="${l.id}">Já li — registrar</button>`;
   if (st === 'lendo') acoes = `<button class="btn hot" data-action="concluir" data-id="${l.id}">✓ Terminei — avaliar</button>`;
-  if (st === 'lido') acoes = `<button class="btn olive" data-action="reler" data-id="${l.id}" data-cursor="de novo!">↻ Reler este livro</button>
+  if (st === 'lido') acoes = `<button class="btn olive" data-action="reler" data-id="${l.id}">↻ Reler este livro</button>
       <button class="btn" data-action="leitura-passada" data-id="${l.id}">＋ Leitura antiga</button>`;
 
   let progresso = '';
@@ -527,6 +527,34 @@ function reler(id) {
   abrirDetalhe(id, lt.id); render();
 }
 
+/* ---------------- Gênero automático ---------------- */
+const MAPA_GENEROS = [
+  [/graphic novel|comic|manga|mangá|quadrinho/i, 'HQ / Mangá'],
+  [/juvenile|children|infant|kids/i, 'Infantojuvenil'],
+  [/young adult|juvenil|\bya\b/i, 'Young adult'],
+  [/science fiction|ficção científica|sci-?fi|dystop|distop/i, 'Ficção científica'],
+  [/fantasy|fantasia|magic|dragon/i, 'Fantasia'],
+  [/horror|terror/i, 'Terror'],
+  [/thriller|suspense|mystery|mistério|detective|crime|policial/i, 'Suspense'],
+  [/romance|love stor|amor/i, 'Romance'],
+  [/poetry|poesia|poems|poemas/i, 'Poesia'],
+  [/short stor|contos/i, 'Contos'],
+  [/biograph|autobiograph|memoir|biografia|diaries|diários/i, 'Biografia'],
+  [/self-help|autoajuda|auto-ajuda|personal growth/i, 'Autoajuda'],
+  [/philosoph|filosofia/i, 'Filosofia'],
+  [/history|história/i, 'História'],
+  [/classic|clássico/i, 'Clássico'],
+  [/brazilian|brasileira|brazil/i, 'Literatura brasileira'],
+  [/social science|political|sociology|psychology|business|economics|science|education|religion|nonfiction|non-fiction|ensaio|antirracis|racism/i, 'Não ficção'],
+  [/fiction|ficção|novel|romances/i, 'Ficção'],
+];
+function generoDe(lista) {
+  const txt = (lista || []).join(' | ');
+  if (!txt) return '';
+  for (const [re, g] of MAPA_GENEROS) if (re.test(txt)) return g;
+  return (lista[0] || '').split('/')[0].trim();
+}
+
 /* ---------------- Formulário: livro ---------------- */
 function abrirFormLivro(id = null) {
   const l = id ? acharLivro(id) : null;
@@ -565,9 +593,17 @@ function abrirFormLivro(id = null) {
         <label><input type="radio" name="status" value="quero" checked><span>🔖</span>Quero ler</label>
         <label><input type="radio" name="status" value="lendo"><span>📖</span>Lendo agora</label>
         <label><input type="radio" name="status" value="lido"><span>✅</span>Já li</label>
-      </div></div>`}
+      </div></div>
+      <div id="bloco-lido" class="bloco-lido" hidden>
+        <div class="nota-geral mesh grain"><span class="lbl">Que nota você dá?</span>${starsHTML(0, { input: true, name: 'nota-rapida', size: 'xl' })}</div>
+        <div class="row">
+          <div class="field"><label for="f-inicio">Comecei em <span class="muted">(opcional)</span></label><input id="f-inicio" type="date" name="lidoInicio"></div>
+          <div class="field"><label for="f-fim">Terminei em</label><input id="f-fim" type="date" name="lidoFim" value="${hoje()}"></div>
+        </div>
+        <label class="check-crit"><input type="checkbox" name="detalhar"> Quero avaliar também os critérios, citação e personagem favorito</label>
+      </div>`}
     </div>
-    <div class="modal-foot"><button type="button" class="btn ghost" data-action="fechar">Cancelar</button><button class="btn primary" type="submit">${l ? 'Salvar' : 'Adicionar à estante'}</button></div>
+    <div class="modal-foot"><button type="button" class="btn ghost" data-action="fechar">Cancelar</button><button class="btn hot" type="submit">${l ? 'Salvar' : 'Adicionar à estante'}</button></div>
   </form>`;
   atualizarPreviewCapa();
   d.showModal();
@@ -595,7 +631,16 @@ function salvarLivro(form) {
     if (st === 'lendo') l.leituras.push(novaLeitura());
     toast(`“${l.titulo}” entrou na estante!`);
     salvar(); $('#modal-livro').close(); render();
-    if (st === 'lido') { abrirFormLeitura(l.id, null, { passada: true }); return; }
+    if (st === 'lido') {
+      const fim = form.lidoFim.value || hoje();
+      const inicio = form.lidoInicio.value && form.lidoInicio.value <= fim ? form.lidoInicio.value : fim;
+      const nota = +form.querySelector('.stars.input[data-name="nota-rapida"]').dataset.value || 0;
+      const lt = novaLeitura({ inicio, fim, estrelas: nota, paginaAtual: +l.paginas || 0 });
+      l.leituras.push(lt); salvar(); render();
+      if (nota) confete();
+      if (form.detalhar.checked) { abrirFormLeitura(l.id, lt.id); return; }
+      abrirDetalhe(l.id, lt.id); return;
+    }
     abrirDetalhe(l.id); return;
   }
   salvar(); $('#modal-livro').close(); render();
@@ -643,24 +688,25 @@ async function buscarOnline() {
   const res = [];
   if (gb.status === 'fulfilled') (gb.value.items || []).forEach(({ volumeInfo: v = {} }) => {
     const t = v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail;
-    res.push({ titulo: v.title, autor: (v.authors || []).join(', '), paginas: v.pageCount || '', genero: '',
+    res.push({ titulo: v.title, autor: (v.authors || []).join(', '), paginas: v.pageCount || '', genero: generoDe(v.categories), idioma: v.language,
       capa: t ? t.replace('http:', 'https:').replace('&edge=curl', '') : '' });
   });
   if (ol.status === 'fulfilled') (ol.value.docs || []).forEach((d) => res.push({
-    titulo: d.title, autor: (d.author_name || []).slice(0, 2).join(', '), paginas: d.number_of_pages_median || '', genero: '',
+    titulo: d.title, autor: (d.author_name || []).slice(0, 2).join(', '), paginas: d.number_of_pages_median || '', genero: generoDe((d.subject || []).slice(0, 12)),
     capa: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : '',
   }));
   ui.resultados = res.filter((r) => r.titulo);
   if (!ui.resultados.length) { box.innerHTML = '<p class="muted" style="grid-column:1/-1">Nada encontrado. Preencha manualmente 🙂</p>'; return; }
   box.innerHTML = ui.resultados.map((r, i) => `<button type="button" data-action="escolher-resultado" data-i="${i}">
     ${r.capa ? `<img src="${esc(r.capa)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div style="aspect-ratio:2/3;border-radius:4px;margin-bottom:4px;background:${PALETA[i % PALETA.length]}"></div>`}
-    <b>${esc(r.titulo).slice(0, 40)}</b><br><span class="muted">${esc(r.autor).slice(0, 30)}</span></button>`).join('');
+    <b>${esc(r.titulo).slice(0, 40)}</b><br><span class="muted">${esc(r.autor).slice(0, 30)}</span>${r.genero ? `<br><span class="pill" style="margin-top:4px;font-size:.55rem">${esc(r.genero)}</span>` : ''}</button>`).join('');
 }
 function escolherResultado(i) {
   const r = ui.resultados[i]; const f = $('#form-livro'); if (!r || !f) return;
   f.titulo.value = r.titulo || f.titulo.value;
   if (r.autor) f.autor.value = r.autor;
   if (r.paginas) f.paginas.value = r.paginas;
+  if (r.genero) f.genero.value = r.genero;
   $('#resultados').innerHTML = '';
   if (r.capa) definirCapa(r.capa, true); else atualizarPreviewCapa();
 }
@@ -696,7 +742,7 @@ function abrirFormLeitura(livroId, leituraId, { concluir = false, passada = fals
         <label><input type="radio" name="recomenda" value="" ${base.recomenda == null ? 'checked' : ''}>Sem opinião</label>
       </div></div>
     </div>
-    <div class="modal-foot"><button type="button" class="btn ghost" data-action="fechar">Cancelar</button><button class="btn primary" type="submit">${concluir ? 'Concluir leitura 🎉' : 'Salvar'}</button></div>
+    <div class="modal-foot"><button type="button" class="btn ghost" data-action="fechar">Cancelar</button><button class="btn hot" type="submit">${concluir ? 'Concluir leitura 🎉' : 'Salvar'}</button></div>
   </form>`;
   d.showModal();
 }
@@ -831,6 +877,7 @@ document.addEventListener('change', (e) => {
     if (l.paginas && lt.paginaAtual >= +l.paginas) { toast('Chegou na última página! Hora de avaliar 🎉'); abrirFormLeitura(l.id, null, { concluir: true }); }
     render(); if ($('#modal-detalhe').open) renderDetalhe();
   }
+  if (t.name === 'status' && t.form?.id === 'form-livro') { const b = $('#bloco-lido'); if (b) { b.hidden = t.value !== 'lido'; if (!b.hidden) b.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
   if (k === 'meta') { db.metas[ui.ano] = Math.max(1, +t.value || 1); salvar(); render(); }
   if (k === 'ano') { ui.ano = +t.value; render(); }
   if (k === 'ordem') { ui.ordem = t.value; renderLista(); }
@@ -932,20 +979,6 @@ function exemplos() {
   ];
 }
 
-
-/* ---------------- Cursor-bolha ---------------- */
-(() => {
-  const c = $('#cursor'); if (!c || matchMedia('(pointer: coarse)').matches) return;
-  let x = -100, y = -100, cx = x, cy = y;
-  document.addEventListener('pointermove', (e) => {
-    x = e.clientX; y = e.clientY; c.classList.toggle('on', !document.querySelector('dialog[open]'));
-    const alvo = e.target.closest('[data-cursor], .spine, .polaroid, .card-oferta, .t-item');
-    c.classList.toggle('big', !!alvo && !e.target.closest('input, textarea, select, .stars.input'));
-    c.querySelector('span').textContent = alvo ? (alvo.dataset.cursor || 'abrir') : '';
-  });
-  document.addEventListener('pointerleave', () => c.classList.remove('on'));
-  (function loop() { cx += (x - cx) * 0.2; cy += (y - cy) * 0.2; c.style.transform = `translate(${cx}px, ${cy}px)`; requestAnimationFrame(loop); })();
-})();
 
 /* ---------------- Início ---------------- */
 aplicarTema();
