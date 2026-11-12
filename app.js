@@ -22,6 +22,11 @@ const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'o
 const MESES_LONGOS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const PALETA = ['#e8458b', '#8f1d4a', '#b8b23e', '#f2703d', '#cdb0f0', '#f49ac1', '#5e0b2b', '#d9822b',
   '#6d7a2a', '#b5338a', '#ff9e7a', '#7a3b69', '#c2185b', '#9a8fd8', '#e0a43a', '#3f6b4f'];
+const ICONES = {
+  quero: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 5h18a2 2 0 0 1 2 2v28l-11-7-11 7V7a2 2 0 0 1 2-2z" fill="#f49ac1" stroke="#5e0b2b" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 21.5s-5-3-5-6.3a2.7 2.7 0 0 1 5-1.4 2.7 2.7 0 0 1 5 1.4c0 3.3-5 6.3-5 6.3z" fill="#fff4ea" stroke="#5e0b2b" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  lendo: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 11c-4-3-9-3.5-15-2v22c6-1.5 11-1 15 2 4-3 9-3.5 15-2V9c-6-1.5-11-1-15 2z" fill="#fff4ea" stroke="#5e0b2b" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 11v22" stroke="#5e0b2b" stroke-width="2.4"/><path d="M9 15c3-.6 5.5-.3 7.5.8M9 20c3-.6 5.5-.3 7.5.8M23.5 15.8c2-1.1 4.5-1.4 7.5-.8" fill="none" stroke="#b8b23e" stroke-width="2.2" stroke-linecap="round"/><path d="M27 8v10l2.5-1.8L32 18V7.4" fill="#e8458b" stroke="#5e0b2b" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  lido: '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="6" width="22" height="28" rx="3" fill="#f2703d" stroke="#5e0b2b" stroke-width="2.4"/><path d="M12 6v28" stroke="#5e0b2b" stroke-width="2.4"/><path d="M16 12h8M16 16h6" stroke="#fff4ea" stroke-width="2.2" stroke-linecap="round"/><circle cx="28" cy="27" r="8" fill="#b8b23e" stroke="#5e0b2b" stroke-width="2.4"/><path d="M24.3 27.2l2.6 2.6 4.8-5" fill="none" stroke="#fff4ea" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 6.1 6.7.82-4.93 4.6 1.27 6.63L12 17.4l-5.98 3.25 1.27-6.63-4.93-4.6 6.7-.82z"/></svg>';
 
 let db = window.ML_CONFIG?.supabaseUrl ? { livros: [], metas: {}, tema: lerTemaLocal() } : carregar();
@@ -595,9 +600,9 @@ function abrirFormLivro(id = null) {
       <div class="field"><label for="f-genero">Gênero</label><input id="f-genero" name="genero" list="lista-generos" value="${esc(l?.genero || '')}">
         <datalist id="lista-generos">${GENEROS.map((g) => `<option value="${g}">`).join('')}</datalist></div>
       ${l ? '' : `<div class="field"><span class="lbl">Status</span><div class="radio-cards">
-        <label><input type="radio" name="status" value="quero" checked><span>🔖</span>Quero ler</label>
-        <label><input type="radio" name="status" value="lendo"><span>📖</span>Lendo agora</label>
-        <label><input type="radio" name="status" value="lido"><span>✅</span>Já li</label>
+        <label><input type="radio" name="status" value="quero" checked><span class="ico">${ICONES.quero}</span>Quero ler</label>
+        <label><input type="radio" name="status" value="lendo"><span class="ico">${ICONES.lendo}</span>Lendo agora</label>
+        <label><input type="radio" name="status" value="lido"><span class="ico">${ICONES.lido}</span>Já li</label>
       </div></div>
       <div id="bloco-lido" class="bloco-lido" hidden>
         <div class="nota-geral mesh grain"><span class="lbl">Que nota você dá?</span>${starsHTML(0, { input: true, name: 'nota-rapida', size: 'xl' })}</div>
@@ -605,7 +610,22 @@ function abrirFormLivro(id = null) {
           <div class="field"><label for="f-inicio">Comecei em <span class="muted">(opcional)</span></label><input id="f-inicio" type="date" name="lidoInicio"></div>
           <div class="field"><label for="f-fim">Terminei em</label><input id="f-fim" type="date" name="lidoFim" value="${hoje()}"></div>
         </div>
-        <label class="check-crit"><input type="checkbox" name="detalhar"> Quero avaliar também os critérios, citação e personagem favorito</label>
+        <label class="check-crit"><input type="checkbox" name="detalhar"><span class="chave" aria-hidden="true"></span><span>Quero avaliar também os critérios, personagem e citação favorita</span></label>
+        <div class="detalhes-lido" id="detalhes-lido" inert>
+          <div class="detalhes-dentro">
+            <p class="script detalhes-titulo">a ficha completa da leitura ✿</p>
+            <p class="lbl" style="margin:0 0 6px">Critérios <span class="script" style="text-transform:none;font-size:.95rem;letter-spacing:0">clique na metade da estrela pra meia nota</span></p>
+            <div class="crit-grid" style="margin-bottom:16px">${CRITERIOS.map(([k, t]) => `<div class="crit"><span>${t}</span>${starsHTML(0, { input: true, name: k, variant: 'blue' })}</div>`).join('')}</div>
+            <div class="field"><label for="f-pers">Personagem favorito</label><input id="f-pers" name="personagem"></div>
+            <div class="field"><label for="f-cit">Citação favorita</label><textarea id="f-cit" name="citacao" rows="2"></textarea></div>
+            <div class="field"><label for="f-notas">Impressões / resenha</label><textarea id="f-notas" name="notas" rows="3" placeholder="O que ficou com você?"></textarea></div>
+            <div class="field" style="margin-bottom:4px"><span class="lbl">Recomendaria?</span><div class="seg-rec">
+              <label><input type="radio" name="recomenda" value="sim">✓ Sim</label>
+              <label><input type="radio" name="recomenda" value="nao">✕ Não</label>
+              <label><input type="radio" name="recomenda" value="" checked>Sem opinião</label>
+            </div></div>
+          </div>
+        </div>
       </div>`}
     </div>
     <div class="modal-foot"><button type="button" class="btn ghost" data-action="fechar">Cancelar</button><button class="btn hot" type="submit">${l ? 'Salvar' : 'Adicionar à estante'}</button></div>
@@ -640,10 +660,18 @@ function salvarLivro(form) {
       const fim = form.lidoFim.value || hoje();
       const inicio = form.lidoInicio.value && form.lidoInicio.value <= fim ? form.lidoInicio.value : fim;
       const nota = +form.querySelector('.stars.input[data-name="nota-rapida"]').dataset.value || 0;
-      const lt = novaLeitura({ inicio, fim, estrelas: nota, paginaAtual: +l.paginas || 0 });
+      const extra = {};
+      if (form.detalhar.checked) {
+        extra.criterios = {};
+        form.querySelectorAll('#detalhes-lido .stars.input').forEach((s) => { if (+s.dataset.value) extra.criterios[s.dataset.name] = +s.dataset.value; });
+        extra.personagem = form.personagem.value.trim();
+        extra.citacao = form.citacao.value.trim();
+        extra.notas = form.notas.value.trim();
+        extra.recomenda = form.recomenda.value === '' ? null : form.recomenda.value === 'sim';
+      }
+      const lt = novaLeitura({ inicio, fim, estrelas: nota, paginaAtual: +l.paginas || 0, ...extra });
       l.leituras.push(lt); salvar(); render();
       if (nota) confete();
-      if (form.detalhar.checked) { abrirFormLeitura(l.id, lt.id); return; }
       abrirDetalhe(l.id, lt.id); return;
     }
     abrirDetalhe(l.id); return;
@@ -742,8 +770,8 @@ function abrirFormLeitura(livroId, leituraId, { concluir = false, passada = fals
       <div class="field"><label for="l-cit">Citação favorita</label><textarea id="l-cit" name="citacao" rows="2">${esc(base.citacao)}</textarea></div>
       <div class="field"><label for="l-notas">Impressões / resenha</label><textarea id="l-notas" name="notas" rows="4" placeholder="O que ficou com você?">${esc(base.notas)}</textarea></div>
       <div class="field"><span class="lbl">Recomendaria?</span><div class="seg-rec">
-        <label><input type="radio" name="recomenda" value="sim" ${base.recomenda === true ? 'checked' : ''}>👍 Sim</label>
-        <label><input type="radio" name="recomenda" value="nao" ${base.recomenda === false ? 'checked' : ''}>👎 Não</label>
+        <label><input type="radio" name="recomenda" value="sim" ${base.recomenda === true ? 'checked' : ''}>✓ Sim</label>
+        <label><input type="radio" name="recomenda" value="nao" ${base.recomenda === false ? 'checked' : ''}>✕ Não</label>
         <label><input type="radio" name="recomenda" value="" ${base.recomenda == null ? 'checked' : ''}>Sem opinião</label>
       </div></div>
     </div>
@@ -884,6 +912,10 @@ document.addEventListener('change', (e) => {
     lt.paginaAtual = Math.max(0, +t.value || 0); salvar();
     if (l.paginas && lt.paginaAtual >= +l.paginas) { toast('Chegou na última página! Hora de avaliar 🎉'); abrirFormLeitura(l.id, null, { concluir: true }); }
     render(); if ($('#modal-detalhe').open) renderDetalhe();
+  }
+  if (t.name === 'detalhar' && t.form?.id === 'form-livro') {
+    const d = $('#detalhes-lido'); d.classList.toggle('aberto', t.checked); d.inert = !t.checked;
+    if (t.checked) setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
   }
   if (t.name === 'status' && t.form?.id === 'form-livro') { const b = $('#bloco-lido'); if (b) { b.hidden = t.value !== 'lido'; if (!b.hidden) b.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
   if (k === 'meta') { db.metas[ui.ano] = Math.max(1, +t.value || 1); salvar(); render(); }
