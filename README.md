@@ -1,6 +1,6 @@
 # 📚 Minhas Leituras
 
-Diário de leituras pessoal: estante com lombadas animadas, avaliações por estrelas (com meia estrela),
+Diário de leituras pessoal, com visual de scrapbook retrô (rosa, vinho, oliva e tangerina, gradientes granulados, adesivos e polaroids): estante com lombadas animadas, avaliações por estrelas (com meia estrela),
 critérios por livro e **releituras que não sobrescrevem as avaliações anteriores**.
 
 ## Funcionalidades

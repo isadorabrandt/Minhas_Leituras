@@ -19,8 +19,8 @@ const GENEROS = ['Romance', 'Fantasia', 'Ficção', 'Ficção científica', 'Sus
   'Infantojuvenil', 'Young adult', 'História', 'Filosofia'];
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const MESES_LONGOS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const PALETA = ['#8c2f39', '#2f4b7c', '#386641', '#bc6c25', '#5e3c58', '#1d3557', '#9c6644', '#264653',
-  '#6a4c93', '#a4505f', '#3a5a40', '#7f5539', '#b23a48', '#003049', '#606c38', '#2a6f97'];
+const PALETA = ['#e8458b', '#8f1d4a', '#b8b23e', '#f2703d', '#cdb0f0', '#f49ac1', '#5e0b2b', '#d9822b',
+  '#6d7a2a', '#b5338a', '#ff9e7a', '#7a3b69', '#c2185b', '#9a8fd8', '#e0a43a', '#3f6b4f'];
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.94 6.1 6.7.82-4.93 4.6 1.27 6.63L12 17.4l-5.98 3.25 1.27-6.63-4.93-4.6 6.7-.82z"/></svg>';
 
 let db = carregar();
@@ -107,32 +107,61 @@ function pintarEstrelas(el, v) {
   const val = el.querySelector('.stars-val'); if (val) val.textContent = v ? fmtNota(v) : '—';
 }
 
+const ORNAMENTOS = ['✿', '❀', '✦', '☾', '♡', '✸'];
+const rot = (id, amp = 3) => ((hash(id) % 7) - 3) * (amp / 3);
+
 function capaHTML(l, extra = '') {
   const cor = corDe(l);
   if (l.capa) return `<div class="cover ${extra}" style="--c:${cor}"><img src="${esc(l.capa)}" alt="Capa de ${esc(l.titulo)}" loading="lazy" referrerpolicy="no-referrer"></div>`;
-  return `<div class="cover gen ${extra}" style="--c:${cor}"><span class="gt">${esc(l.titulo)}</span><span class="ga">${esc(l.autor)}</span></div>`;
+  return `<div class="cover gen ${extra}" style="--c:${cor};--t:${textoSobre(cor)}"><span class="gt">${esc(l.titulo)}</span><span class="orn">${ORNAMENTOS[hash(l.titulo) % ORNAMENTOS.length]}</span><span class="ga">${esc(l.autor)}</span></div>`;
+}
+function polaroidHTML(l, { r = rot(l.id || l.titulo, 5), fita = '', legenda = true } = {}) {
+  return `<div class="polaroid tape ${fita}" style="--r:${r}deg"><div class="tilt">${capaHTML(l)}</div>${legenda ? `<span class="cap">${esc(l.titulo)}</span>` : ''}</div>`;
+}
+function seloHTML(texto, centro = '✿') {
+  const t = `${texto} ✿ ${texto} ✿ `;
+  return `<div class="selo"><svg viewBox="0 0 120 120"><defs><path id="circ-${hash(texto)}" d="M60 60m-44 0a44 44 0 1 1 88 0a44 44 0 1 1-88 0"/></defs>
+    <circle class="bg" cx="60" cy="60" r="58"/><text><textPath href="#circ-${hash(texto)}">${esc(t)}</textPath></text></svg><b>${centro}</b></div>`;
 }
 const pillStatus = (l) => `<span class="pill ${status(l)}">${STATUS_TXT[status(l)]}</span>`;
 
 /* ---------------- Render ---------------- */
 function render() {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('ativo', b.dataset.view === ui.view));
+  renderFaixas();
   const app = $('#app');
   if (!db.livros.length) { app.innerHTML = viewVazia(); return; }
   app.innerHTML = `<div class="view">${({ inicio: viewInicio, estante: viewEstante, diario: viewDiario })[ui.view]()}</div>`;
   if (ui.view === 'estante') renderLista();
 }
 
+function renderFaixas() {
+  const ano = new Date().getFullYear();
+  const feitas = todasLeituras().filter((x) => x.leitura.fim && x.leitura.fim.startsWith(String(ano))).length;
+  const alvo = db.metas[ano] || 12;
+  $('#announce').innerHTML = db.livros.length
+    ? `✿ meta de ${ano}: <b>${feitas} de ${alvo}</b> livros ${feitas >= alvo ? '— meta batida! 🎉' : `— faltam ${alvo - feitas}`} ✿`
+    : '✿ seu diário de leituras começa aqui ✿';
+  const lendo = db.livros.filter((l) => status(l) === 'lendo').map((l) => `lendo: ${esc(l.titulo)}`);
+  const frases = ['ler é mais do que contar páginas', ...lendo, 'releia sem medo', 'toda nota tem seu tempo', 'uma página de cada vez', 'livro bom é livro relido'];
+  const linha = frases.map((f) => `<span>${f}</span><i>✿</i>`).join('');
+  $('#marquee').innerHTML = linha + linha + linha + linha;
+}
+
 function viewVazia() {
-  const pilha = PALETA.slice(0, 9).map((c, i) => `<i style="background:${c};height:${80 + (i * 37) % 60}px;animation-delay:${i * 60}ms"></i>`).join('');
-  return `<div class="vazio view">
-    <div class="pilha">${pilha}</div>
-    <h1>Sua estante está esperando.</h1>
-    <p>Cadastre os livros que você já leu, está lendo e quer ler. Dê estrelas, guarde citações e registre releituras sem perder as avaliações antigas.</p>
-    <div class="acoes">
-      <button class="btn primary" data-action="novo-livro">＋ Adicionar meu primeiro livro</button>
-      <button class="btn" data-action="exemplos">Ver com livros de exemplo</button>
-    </div></div>`;
+  const fakes = [{ titulo: 'Seu próximo livro', autor: 'você', cor: '#e8458b' }, { titulo: 'Aquele que você ama', autor: 'releitura', cor: '#b8b23e' }];
+  return `<div class="view"><section class="hero mesh grain">
+    <div>
+      <p class="script">Oi, leitora...</p>
+      <h1>Sua estante deveria ser <span class="hl-olive">leve</span>, <span class="hl-hot">bonita</span> &amp; <span class="hl-tang">sua</span></h1>
+      <p class="lead">Cadastre o que você já leu, está lendo e quer ler. Dê estrelas, guarde citações e registre releituras sem perder as avaliações antigas.</p>
+      <div class="hero-acoes">
+        <button class="btn olive" data-action="novo-livro" data-cursor="bora!">＋ Primeiro livro</button>
+        <button class="btn" data-action="exemplos" data-cursor="espiar">Ver com exemplos</button>
+      </div>
+    </div>
+    <div class="hero-art">${fakes.map((f) => polaroidHTML(f, { r: 0 })).join('')}${seloHTML('diário de leituras', '📖')}</div>
+  </section></div>`;
 }
 
 /* ----- Início ----- */
@@ -149,91 +178,99 @@ function viewInicio() {
   const releituras = doAno.filter((x) => x.n > 1).length;
   const alvo = db.metas[ano] || 12;
   const pct = Math.min(1, doAno.length / alvo);
-  const C = 2 * Math.PI * 52;
-
-  const porMes = Array(12).fill(0);
-  doAno.forEach((x) => porMes[+x.leitura.fim.slice(5, 7) - 1]++);
-  const max = Math.max(1, ...porMes);
+  const C = 2 * Math.PI * 88;
   const mesAgora = ano === new Date().getFullYear() ? new Date().getMonth() : -1;
+  const porMes = Array.from({ length: 12 }, () => []);
+  doAno.forEach((x) => porMes[+x.leitura.fim.slice(5, 7) - 1].push(x));
 
   const gen = {};
   doAno.forEach((x) => { const g = x.livro.genero || 'Sem gênero'; gen[g] = (gen[g] || 0) + 1; });
-  const genTop = Object.entries(gen).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const genMax = genTop[0]?.[1] || 1;
+  const generos = Object.entries(gen).sort((a, b) => b[1] - a[1]);
 
   const citacoes = todas.filter((x) => x.leitura.citacao);
   const cit = citacoes.length ? citacoes[(new Date().getDate() + citacoes.length) % citacoes.length] : null;
-
   const h = new Date().getHours();
-  const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const saud = h < 12 ? 'Bom dia, leitora...' : h < 18 ? 'Boa tarde, leitora...' : 'Boa noite, leitora...';
+  const nomes = lendo.slice(0, 2).map((l) => `<b>${esc(l.titulo)}</b>`).join(' &amp; ');
+  const arte = (lendo.length ? lendo : fila).slice(0, 2);
+  const corBtn = ['pink', 'olive', 'tang', 'lilac'];
 
   return `
-  <section class="hero">
+  <section class="hero mesh grain">
     <div>
-      <p class="eyebrow">${saud}</p>
-      <h1>O que você está <em>lendo</em> hoje?</h1>
-      <p>${db.livros.length} livros na estante · ${todas.filter((x) => x.leitura.fim).length} leituras concluídas desde sempre</p>
+      <p class="script">${saud}</p>
+      <h1>Sua estante deveria ser <span class="hl-olive">leve</span>, <span class="hl-hot">bonita</span> &amp; <span class="hl-tang">sua</span></h1>
+      <p class="lead">${lendo.length ? `Agora mesmo você está com ${nomes} nas mãos.` : 'Nenhum livro aberto agora — que tal escolher um da fila?'}
+        ${db.livros.length} livros na estante e ${todas.filter((x) => x.leitura.fim).length} leituras concluídas desde sempre.</p>
+      <div class="hero-acoes">
+        <button class="btn olive" data-action="novo-livro" data-cursor="novo!">＋ Novo livro</button>
+        <button class="btn" data-action="nav" data-view="estante" data-cursor="ver">Abrir a estante</button>
+      </div>
     </div>
-    <select class="select-ano" data-change="ano" aria-label="Ano das estatísticas">${anos.map((a) => `<option ${a === ano ? 'selected' : ''}>${a}</option>`).join('')}</select>
+    <div class="hero-art">
+      ${arte.map((l, i) => `<button style="all:unset;cursor:pointer" data-action="abrir" data-id="${l.id}" data-cursor="abrir">${polaroidHTML(l, { r: i ? 6 : -7, fita: i ? 'olive' : '' })}</button>`).join('')}
+      ${seloHTML(lendo.length ? 'lendo agora' : 'quero ler', lendo.length || fila.length)}
+    </div>
   </section>
 
-  <div class="dash">
-    <section class="card span-7">
-      <h3>Lendo agora <span class="pill lendo">${lendo.length}</span></h3>
-      ${lendo.length ? `<div class="lendo-list">${lendo.map(cardLendo).join('')}</div>`
-        : `<p class="muted">Nenhuma leitura em andamento. Que tal escolher algo da sua fila?</p>`}
-    </section>
+  ${lendo.length ? `<section class="secao wrap">
+    <div class="balao"><h2>Você está na ${lendo.map((l) => `página <span class="squiggle">${+leituraAtual(l).paginaAtual || 0}</span> de ${esc(l.titulo)}`).join(' &amp; na ')}.</h2>
+      <p class="script">atualize aqui embaixo, sem cerimônia ↓</p></div>
+    <div class="cards3">${lendo.map(cardLendo).join('')}</div>
+  </section>` : ''}
 
-    <section class="card span-5">
-      <h3>Meta de ${ano}</h3>
-      <div class="meta">
-        <div class="ring">
-          <svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52"
-            stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/></svg>
-          <div><b>${doAno.length}</b><small>de ${alvo}</small></div>
+  <section class="secao mesh grain wavy">
+    <div class="wrap">
+      <div class="secao-titulo"><h2>Meta de ${ano}, em adesivos</h2>
+        <span class="script">${pct >= 1 ? 'meta batida! hora de sonhar mais alto' : `faltam ${alvo - doAno.length} — ${Math.round(pct * 100)}% do caminho`}</span>
+        <div style="margin-top:14px"><select class="select-ano" data-change="ano" aria-label="Ano das estatísticas">${anos.map((a) => `<option ${a === ano ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
+      </div>
+      <div class="painel">
+        <div class="meta-anel">
+          <svg class="anel" viewBox="0 0 200 200"><circle class="trk" cx="100" cy="100" r="88"/><circle class="val" cx="100" cy="100" r="88" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/></svg>
+          <div class="centro"><span class="script">li</span><b>${doAno.length}</b><label>de <input type="number" min="1" max="999" value="${alvo}" data-change="meta" aria-label="Meta de livros"> livros</label></div>
         </div>
-        <div>
-          <p style="margin:0 0 10px">${pct >= 1 ? '🎉 Meta batida! Hora de sonhar mais alto.' : `Faltam <b>${alvo - doAno.length}</b> livros — ${Math.round(pct * 100)}% do caminho.`}</p>
-          <label class="lbl">Meta de livros: <input type="number" min="1" max="999" value="${alvo}" data-change="meta"></label>
+        <div class="adesivos">
+          <div class="adesivo a1"><b>${doAno.length}</b><span>leituras concluídas</span></div>
+          <div class="adesivo a2"><b>${paginas.toLocaleString('pt-BR')}</b><span>páginas viradas</span></div>
+          <div class="adesivo a3"><b>${media ? fmtNota(media) : '—'}</b><span>média de estrelas</span></div>
+          <div class="adesivo a4"><b>${releituras}</b><span>releituras</span></div>
         </div>
       </div>
-      <div class="stat-tiles" style="margin-top:18px">
-        <div class="tile"><b>${doAno.length}</b><span>leituras concluídas</span></div>
-        <div class="tile"><b>${paginas.toLocaleString('pt-BR')}</b><span>páginas lidas</span></div>
-        <div class="tile"><b>${media ? fmtNota(media) : '—'}</b><span>média de estrelas</span></div>
-        <div class="tile"><b>${releituras}</b><span>releituras</span></div>
-      </div>
-    </section>
+    </div>
+  </section>
 
-    <section class="card span-8">
-      <h3>Livros por mês <small class="muted" style="font-family:var(--sans);font-weight:500">${ano}</small></h3>
-      <div class="bars">${porMes.map((n, i) => `
-        <div class="bar ${i === mesAgora ? 'agora' : ''}" title="${MESES_LONGOS[i]}: ${n} livro(s)">
-          <b>${n || ''}</b><i style="height:${(n / max) * 120}px;animation-delay:${i * 40}ms"></i><small>${MESES[i]}</small>
-        </div>`).join('')}
-      </div>
-    </section>
+  <section class="secao wrap">
+    <div class="secao-titulo"><h2>Uma pilha por mês</h2><span class="script">cada livrinho é uma leitura terminada — passe o mouse</span></div>
+    <div class="pilhas">${porMes.map((itens, i) => `
+      <div class="pilha ${i === mesAgora ? 'agora' : ''}">
+        <small>${MESES[i]}</small>
+        ${itens.length ? itens.map((x, k) => `<i class="livrinho" data-t="${esc(x.livro.titulo)}${x.leitura.estrelas ? ' ★' + fmtNota(x.leitura.estrelas) : ''}" style="--c:${corDe(x.livro)};width:${70 + (hash(x.livro.id) % 30)}%;animation-delay:${i * 50 + k * 90}ms"></i>`).join('') : '<i class="vazia"></i>'}
+        ${itens.length ? `<span class="num">${itens.length}</span>` : ''}
+      </div>`).join('')}
+    </div>
+    ${generos.length ? `<div class="generos">${generos.map(([g, n]) => `<span class="pill" style="--n:${n}">${esc(g)} · ${n}</span>`).join('')}</div>` : ''}
+  </section>
 
-    <section class="card span-4">
-      <h3>Gêneros em ${ano}</h3>
-      ${genTop.length ? `<div class="hbars">${genTop.map(([g, n]) => `
-        <div class="hbar"><span>${esc(g)}</span><span class="trk"><i style="width:${(n / genMax) * 100}%"></i></span><b>${n}</b></div>`).join('')}</div>`
-        : '<p class="muted">Conclua leituras para ver seus gêneros.</p>'}
-    </section>
+  ${cit ? `<section class="secao mesh dark grain wavy citacao"><div class="wrap">
+    <span class="script">uma frase que ficou...</span>
+    <blockquote>“${esc(cit.leitura.citacao)}”</blockquote>
+    <p>— ${esc(cit.livro.titulo)}${cit.livro.autor ? `, ${esc(cit.livro.autor)}` : ''}</p>
+  </div></section>` : ''}
 
-    ${cit ? `<section class="card quote-card span-6">
-      <p class="eyebrow">Citação favorita</p>
-      <blockquote>${esc(cit.leitura.citacao)}</blockquote>
-      <p class="muted" style="margin:0">— ${esc(cit.livro.titulo)}${cit.livro.autor ? `, ${esc(cit.livro.autor)}` : ''}</p>
-    </section>` : ''}
-
-    <section class="card ${cit ? 'span-6' : 'span-12'}">
-      <h3>Quero ler <span class="pill quero">${fila.length}</span></h3>
-      ${fila.length ? `<div class="fila">${fila.map((l) => `
-        <button data-action="abrir" data-id="${l.id}"><div class="tilt">${capaHTML(l)}</div><small>${esc(l.titulo)}</small></button>`).join('')}</div>`
-        : '<p class="muted">Sua lista de desejos está vazia.</p>'}
-    </section>
-  </div>`;
+  <section class="secao wrap">
+    <div class="secao-titulo"><h2>Na fila de <span class="hl-hot">quero ler</span></h2><span class="script">${fila.length ? `${fila.length} ${fila.length === 1 ? 'livro esperando' : 'livros esperando'} por você` : 'sua lista de desejos está vazia'}</span></div>
+    ${fila.length ? `<div class="cards3">${fila.map((l, i) => `
+      <article class="card-oferta" data-action="abrir" data-id="${l.id}" data-cursor="abrir" tabindex="0">
+        <div class="escudo">${capaHTML(l)}</div>
+        <span class="script">${esc(l.genero || 'quero ler')}</span>
+        <h3>${esc(l.titulo)}</h3>
+        <p>${esc(l.autor)}${l.paginas ? ` · ${l.paginas} páginas` : ''}</p>
+        <span class="spacer"></span>
+        <button class="btn small ${corBtn[i % 4]}" data-action="comecar" data-id="${l.id}" data-cursor="ler!">Começar a ler</button>
+      </article>`).join('')}</div>`
+      : `<div style="text-align:center"><button class="btn pink" data-action="novo-livro">＋ Adicionar desejo</button></div>`}
+  </section>`;
 }
 
 function cardLendo(l) {
@@ -243,19 +280,18 @@ function cardLendo(l) {
   const pag = Math.min(+lt.paginaAtual || 0, tot || Infinity);
   const pct = tot ? Math.round((pag / tot) * 100) : 0;
   const d = dias(lt.inicio, hoje());
-  return `<article class="lendo-card" data-action="abrir" data-id="${l.id}">
-    <div class="tilt">${capaHTML(l)}</div>
-    <div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${n > 1 ? `<span class="pill reler">${ordinal(n)} leitura</span>` : ''}<span class="pill">${d === 1 ? 'começou hoje' : `há ${d} dias`}</span></div>
-      <h4>${esc(l.titulo)}</h4>
-      <div class="muted">${esc(l.autor)}</div>
-      <div class="progress"><span style="width:${pct}%"></span></div>
-      <div class="prog-row" data-stop>
-        <span>pág.</span><input type="number" min="0" ${tot ? `max="${tot}"` : ''} value="${pag}" data-change="progresso" data-id="${l.id}" aria-label="Página atual">
-        <span>${tot ? `de ${tot} · <b>${pct}%</b>` : ''}</span>
-        <button class="btn small primary" data-action="concluir" data-id="${l.id}" style="margin-left:auto">Terminei!</button>
-      </div>
+  return `<article class="card-oferta" data-action="abrir" data-id="${l.id}" data-cursor="abrir" tabindex="0">
+    <div class="escudo">${capaHTML(l)}</div>
+    <span class="script">${n > 1 ? `${ordinal(n)} leitura · ` : ''}${d === 1 ? 'começou hoje' : `há ${d} dias`}</span>
+    <h3>${esc(l.titulo)}</h3>
+    <p>${esc(l.autor)}</p>
+    <div class="progresso"><span style="width:${pct}%"></span></div>
+    <div class="prog-row" data-stop>
+      <span>pág.</span><input type="number" min="0" ${tot ? `max="${tot}"` : ''} value="${pag}" data-change="progresso" data-id="${l.id}" aria-label="Página atual">
+      <span>${tot ? `de ${tot} · <b>${pct}%</b>` : ''}</span>
     </div>
+    <span class="spacer"></span>
+    <button class="btn small hot" data-action="concluir" data-id="${l.id}" data-cursor="eba!">Terminei!</button>
   </article>`;
 }
 
@@ -265,27 +301,32 @@ function viewEstante() {
   db.livros.forEach((l) => { cont[status(l)]++; if (concluidas(l).length > 1 || (leituraAtual(l) && l.leituras.length > 1)) cont.reler++; });
   const chip = (k, t) => `<button class="chip ${ui.filtro === k ? 'ativo' : ''}" data-action="filtro" data-f="${k}">${t}<em>${cont[k]}</em></button>`;
   return `
-  <section class="hero"><div><p class="eyebrow">Sua biblioteca</p><h1>A <em>estante</em></h1>
-    <p>Passe o mouse nas lombadas para puxar o livro. Clique para abrir.</p></div></section>
-  <div class="toolbar">
-    <div class="chips">${chip('todos', 'Todos')}${chip('lendo', 'Lendo')}${chip('quero', 'Quero ler')}${chip('lido', 'Lidos')}${chip('reler', 'Releituras')}</div>
-    <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <span class="sr">Buscar</span><input id="busca-estante" type="search" placeholder="Buscar título, autor ou gênero" value="${esc(ui.busca)}"></label>
-    <select data-change="ordem" aria-label="Ordenar">
-      ${[['recentes', 'Adicionados recentemente'], ['titulo', 'Título (A–Z)'], ['autor', 'Autor (A–Z)'], ['nota', 'Melhor avaliados'], ['paginas', 'Mais páginas']]
-        .map(([v, t]) => `<option value="${v}" ${ui.ordem === v ? 'selected' : ''}>${t}</option>`).join('')}
-    </select>
-    <div class="seg" role="group" aria-label="Visualização">
-      <button class="${ui.modo === 'lombadas' ? 'ativo' : ''}" data-action="modo" data-m="lombadas">Lombadas</button>
-      <button class="${ui.modo === 'capas' ? 'ativo' : ''}" data-action="modo" data-m="capas">Capas</button>
+  <section class="cabecalho mesh grain">
+    <div><p class="script">sua biblioteca particular...</p><h1>A <span class="hl-hot">estante</span></h1>
+      <p>Passe o mouse nas lombadas para puxar o livro da prateleira. Clique para abrir o diário dele.</p></div>
+    ${seloHTML(`${db.livros.length} livros`, '📚')}
+  </section>
+  <div class="wrap">
+    <div class="toolbar">
+      <div class="chips">${chip('todos', 'Todos')}${chip('lendo', 'Lendo')}${chip('quero', 'Quero ler')}${chip('lido', 'Lidos')}${chip('reler', 'Releituras')}</div>
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="sr">Buscar</span><input id="busca-estante" type="search" placeholder="Buscar título, autor ou gênero" value="${esc(ui.busca)}"></label>
+      <select data-change="ordem" aria-label="Ordenar">
+        ${[['recentes', 'Recentes'], ['titulo', 'Título (A–Z)'], ['autor', 'Autor (A–Z)'], ['nota', 'Melhor avaliados'], ['paginas', 'Mais páginas']]
+          .map(([v, t]) => `<option value="${v}" ${ui.ordem === v ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <div class="seg" role="group" aria-label="Visualização">
+        <button class="${ui.modo === 'lombadas' ? 'ativo' : ''}" data-action="modo" data-m="lombadas">Lombadas</button>
+        <button class="${ui.modo === 'capas' ? 'ativo' : ''}" data-action="modo" data-m="capas">Polaroids</button>
+      </div>
     </div>
-  </div>
-  <div id="lista-estante"></div>`;
+    <div id="lista-estante"></div>
+  </div>`;
 }
 
 function filtrarLivros() {
   const q = ui.busca.trim().toLowerCase();
-  let ls = db.livros.filter((l) => {
+  const ls = db.livros.filter((l) => {
     if (ui.filtro === 'reler') { if (!(concluidas(l).length > 1 || (leituraAtual(l) && l.leituras.length > 1))) return false; }
     else if (ui.filtro !== 'todos' && status(l) !== ui.filtro) return false;
     return !q || `${l.titulo} ${l.autor} ${l.genero}`.toLowerCase().includes(q);
@@ -303,42 +344,45 @@ function filtrarLivros() {
 function renderLista() {
   const el = $('#lista-estante'); if (!el) return;
   const ls = filtrarLivros();
-  if (!ls.length) { el.innerHTML = `<p class="muted" style="text-align:center;padding:40px">Nenhum livro encontrado.</p>`; return; }
+  if (!ls.length) { el.innerHTML = `<p class="script" style="text-align:center;padding:40px">nenhum livro por aqui...</p>`; return; }
   if (ui.filtro === 'todos') {
-    el.innerHTML = [['lendo', 'Lendo agora'], ['lido', 'Lidos'], ['quero', 'Quero ler']]
-      .map(([s, t]) => { const g = ls.filter((l) => status(l) === s); return g.length ? `<section class="secao-estante"><h2>${t} <small>${g.length}</small></h2>${blocoLivros(g)}</section>` : ''; }).join('');
+    el.innerHTML = [['lendo', 'Lendo agora', 'com marcador amarelo'], ['lido', 'Lidos', 'os que já moram em você'], ['quero', 'Quero ler', 'a fila dos sonhos']]
+      .map(([s, t, sub]) => { const g = ls.filter((l) => status(l) === s); return g.length ? `<section class="secao-estante"><h2>${t} <span class="pill ${s}">${g.length}</span> <span class="script">${sub}</span></h2>${blocoLivros(g)}</section>` : ''; }).join('');
   } else el.innerHTML = blocoLivros(ls);
 }
 function blocoLivros(ls) { return ui.modo === 'lombadas' ? estanteHTML(ls) : `<div class="grid-capas">${ls.map(capaCardHTML).join('')}</div>`; }
 
 function estanteHTML(ls) {
-  const largura = ($('#app')?.clientWidth || 1000) - 60;
-  const porPrat = Math.max(5, Math.floor(largura / 48));
-  let out = '';
+  const largura = ($('.wrap')?.clientWidth || 1000) - 80;
+  const porPrat = Math.max(5, Math.floor(largura / 50));
+  let out = '<div class="parede">';
   for (let i = 0; i < ls.length; i += porPrat) {
-    out += `<div class="shelf"><div class="shelf-row">${ls.slice(i, i + porPrat).map(lombadaHTML).join('')}</div><div class="plank"></div></div>`;
+    out += `<div class="shelf-row">${ls.slice(i, i + porPrat).map(lombadaHTML).join('')}</div><div class="plank"></div>`;
   }
-  return out;
+  return out + '</div>';
 }
 function lombadaHTML(l) {
   const p = Math.min(+l.paginas || 280, 1000);
-  const h = Math.round(175 + (p / 1000) * 60 + (hash(l.titulo) % 20));
-  const w = Math.round(30 + (p / 1000) * 26);
+  const h = Math.round(180 + (p / 1000) * 60 + (hash(l.titulo) % 22));
+  const w = Math.round(32 + (p / 1000) * 26);
   const cor = corDe(l);
   const releu = concluidas(l).length > 1;
-  return `<button class="spine" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
-      title="${esc(l.titulo)} — ${esc(l.autor)}">
+  return `<button class="spine" data-action="abrir" data-id="${l.id}" data-cursor="abrir" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
+      aria-label="${esc(l.titulo)} — ${esc(l.autor)}">
+    <span class="faixa f1"></span><span class="faixa f2"></span>
     ${status(l) === 'lendo' ? '<span class="marcador"></span>' : ''}
     <span class="spine-face"><span class="st">${esc(l.titulo)}</span><span class="sa">${esc((l.autor || '').split(' ').slice(-1)[0])}</span></span>
     ${releu ? `<span class="reread">↻${concluidas(l).length}</span>` : ''}
     <span class="spine-peek">${capaHTML(l)}</span>
   </button>`;
 }
-function capaCardHTML(l) {
+function capaCardHTML(l, i) {
   const nota = notaAtual(l);
   const n = concluidas(l).length;
-  return `<button class="capa-card" data-action="abrir" data-id="${l.id}">
-    <div class="capa-wrap tilt">${capaHTML(l)}<div class="badges">${status(l) !== 'lido' ? pillStatus(l) : ''}${n > 1 ? `<span class="pill reler">↻ ${n}x</span>` : ''}</div></div>
+  const fitas = ['', 'olive', 'tang'];
+  return `<button class="capa-card" data-action="abrir" data-id="${l.id}" data-cursor="abrir">
+    ${polaroidHTML(l, { fita: fitas[hash(l.id) % 3], legenda: false })}
+    <div class="badges">${status(l) !== 'lido' ? pillStatus(l) : ''}${n > 1 ? `<span class="pill reler">↻ ${n}x</span>` : ''}</div>
     <div class="info"><strong>${esc(l.titulo)}</strong><small>${esc(l.autor)}</small>${nota ? starsHTML(nota, { size: 'sm' }) : ''}</div>
   </button>`;
 }
@@ -348,33 +392,36 @@ function viewDiario() {
   const itens = todasLeituras();
   const andamento = itens.filter((x) => !x.leitura.fim);
   const feitas = itens.filter((x) => x.leitura.fim).sort((a, b) => b.leitura.fim.localeCompare(a.leitura.fim));
-  let html = `<section class="hero"><div><p class="eyebrow">Linha do tempo</p><h1>Diário de <em>leituras</em></h1>
-    <p>Cada leitura (e releitura) fica registrada com a avaliação daquele momento.</p></div></section><div class="timeline">`;
-  if (andamento.length) {
-    html += `<div class="t-mes">Em andamento</div>` + andamento.map(itemDiario).join('');
-  }
+  let lado = 0;
+  let html = `<section class="cabecalho mesh grain">
+    <div><p class="script">querido diário...</p><h1>Diário de <span class="hl-hot">leituras</span></h1>
+    <p>Cada leitura (e releitura) fica colada aqui com a nota daquele momento — nada é apagado.</p></div>
+    ${seloHTML(`${feitas.length} leituras`, '✎')}
+  </section><div class="wrap"><div class="scrap">`;
+  if (andamento.length) html += `<div class="t-mes andamento"><span>Em andamento</span></div>` + andamento.map((x) => itemDiario(x, lado++)).join('');
   let anoAtual = null, mesAtual = null;
   feitas.forEach((x) => {
     const [a, m] = x.leitura.fim.split('-');
     if (a !== anoAtual) {
       anoAtual = a; mesAtual = null;
       const qtd = feitas.filter((y) => y.leitura.fim.startsWith(a)).length;
-      html += `<h2 class="t-ano">${a} <small>${qtd} ${qtd === 1 ? 'leitura' : 'leituras'}</small></h2>`;
+      html += `<h2 class="t-ano">${a}<small>${qtd} ${qtd === 1 ? 'leitura' : 'leituras'}</small></h2>`;
     }
-    if (m !== mesAtual) { mesAtual = m; html += `<div class="t-mes">${MESES_LONGOS[+m - 1]}</div>`; }
-    html += itemDiario(x);
+    if (m !== mesAtual) { mesAtual = m; html += `<div class="t-mes"><span>${MESES_LONGOS[+m - 1]}</span></div>`; }
+    html += itemDiario(x, lado++);
   });
-  if (!itens.length) html += `<p class="muted">Nenhuma leitura registrada ainda.</p>`;
-  return html + '</div>';
+  if (!itens.length) html += `<p class="script" style="text-align:center">nenhuma leitura registrada ainda...</p>`;
+  return html + '</div></div>';
 }
-function itemDiario({ livro, leitura, n }) {
+function itemDiario({ livro, leitura, n }, i) {
   const det = leitura.fim
     ? `${fmtData(leitura.inicio)} → ${fmtData(leitura.fim)} · ${dias(leitura.inicio, leitura.fim)} dias`
     : `desde ${fmtData(leitura.inicio)} · pág. ${leitura.paginaAtual || 0}${livro.paginas ? ` de ${livro.paginas}` : ''}`;
-  return `<article class="card t-item" data-action="abrir" data-id="${livro.id}" data-lid="${leitura.id}">
+  return `<article class="t-item ${i % 2 ? 'dir' : ''}" data-action="abrir" data-id="${livro.id}" data-lid="${leitura.id}" data-cursor="abrir" tabindex="0">
     <div class="tilt">${capaHTML(livro)}</div>
-    <div><h4>${esc(livro.titulo)}</h4><p>${esc(livro.autor)} · ${det}</p>${leitura.citacao ? `<q>${esc(leitura.citacao)}</q>` : ''}</div>
-    <div class="t-side">${n > 1 ? `<span class="pill reler">${ordinal(n)} leitura</span>` : ''}${leitura.fim ? (leitura.estrelas ? starsHTML(leitura.estrelas) : '<span class="muted">sem nota</span>') : '<span class="pill lendo">Lendo</span>'}</div>
+    <div><h4>${esc(livro.titulo)}</h4><p>${esc(livro.autor)} · ${det}</p>
+      <div class="t-badges">${n > 1 ? `<span class="pill reler">${ordinal(n)} leitura</span>` : ''}${leitura.fim ? (leitura.estrelas ? starsHTML(leitura.estrelas, { size: 'sm' }) : '<span class="pill">sem nota</span>') : '<span class="pill lendo">Lendo</span>'}</div>
+      ${leitura.citacao ? `<q>${esc(leitura.citacao)}</q>` : ''}</div>
   </article>`;
 }
 
@@ -392,32 +439,30 @@ function renderDetalhe() {
   const st = status(l);
   const ord = [...l.leituras].sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
   const atual = leituraAtual(l);
-  const cor = corDe(l);
   const conc = concluidas(l).filter((x) => x.estrelas);
 
   let acoes = '';
-  if (st === 'quero') acoes = `<button class="btn primary" data-action="comecar" data-id="${l.id}">▶ Começar a ler</button>
+  if (st === 'quero') acoes = `<button class="btn hot" data-action="comecar" data-id="${l.id}">▶ Começar a ler</button>
       <button class="btn" data-action="leitura-passada" data-id="${l.id}">Já li — registrar</button>`;
-  if (st === 'lendo') acoes = `<button class="btn primary" data-action="concluir" data-id="${l.id}">✓ Terminei — avaliar</button>`;
-  if (st === 'lido') acoes = `<button class="btn primary" data-action="reler" data-id="${l.id}">↻ Reler este livro</button>
-      <button class="btn" data-action="leitura-passada" data-id="${l.id}">＋ Registrar leitura antiga</button>`;
+  if (st === 'lendo') acoes = `<button class="btn hot" data-action="concluir" data-id="${l.id}">✓ Terminei — avaliar</button>`;
+  if (st === 'lido') acoes = `<button class="btn olive" data-action="reler" data-id="${l.id}" data-cursor="de novo!">↻ Reler este livro</button>
+      <button class="btn" data-action="leitura-passada" data-id="${l.id}">＋ Leitura antiga</button>`;
 
   let progresso = '';
   if (atual) {
     const tot = +l.paginas || 0; const pct = tot ? Math.round(((+atual.paginaAtual || 0) / tot) * 100) : 0;
-    progresso = `<div><div class="progress"><span style="width:${pct}%"></span></div>
+    progresso = `<div class="prog-box"><div class="progresso"><span style="width:${pct}%"></span></div>
       <div class="prog-row"><span>pág.</span><input type="number" min="0" ${tot ? `max="${tot}"` : ''} value="${+atual.paginaAtual || 0}" data-change="progresso" data-id="${l.id}" aria-label="Página atual"><span>${tot ? `de ${tot} · ${pct}%` : ''}</span></div></div>`;
   }
 
-  const evolucao = conc.length > 1 ? `<div class="evolucao"><span class="lbl" style="width:100%">Evolução da nota</span>${conc.map((x, i) => {
+  const evolucao = conc.length > 1 ? `<div class="evolucao"><span class="lbl">a nota mudou com o tempo...</span>${conc.map((x, i) => {
     const d = i ? x.estrelas - conc[i - 1].estrelas : 0;
-    return `${i ? '<span class="seta">→</span>' : ''}<span class="ev">${ordinal(numeroLeitura(l, x))} ★ ${fmtNota(x.estrelas)} ${d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${fmtNota(Math.abs(d))}</span>` : ''}</span>`;
+    return `${i ? '<span class="seta">→</span>' : ''}<span class="ev">${ordinal(numeroLeitura(l, x))} ★ ${fmtNota(x.estrelas)}${d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${fmtNota(Math.abs(d))}</span>` : ''}</span>`;
   }).join('')}</div>` : '';
 
-  $('#modal-detalhe').innerHTML = `<div class="detalhe" style="--c:${cor}">
-    <aside class="detalhe-side">
-      <div class="tilt">${capaHTML(l)}</div>
-      <div style="text-align:center">${pillStatus(l)}</div>
+  $('#modal-detalhe').innerHTML = `<div class="detalhe">
+    <aside class="detalhe-side mesh grain">
+      <div class="capa-area">${polaroidHTML(l, { r: -4 })}${seloHTML(STATUS_TXT[st].toLowerCase(), st === 'lido' ? '✓' : st === 'lendo' ? '📖' : '♡')}</div>
       ${progresso}
       <div class="acoes">${acoes}
         <button class="btn ghost" data-action="editar-livro" data-id="${l.id}">✎ Editar livro</button>
@@ -426,15 +471,15 @@ function renderDetalhe() {
     </aside>
     <div class="detalhe-main">
       <button class="x" data-action="fechar" aria-label="Fechar">×</button>
-      <p class="eyebrow">${[l.genero, l.paginas ? `${l.paginas} páginas` : ''].filter(Boolean).map(esc).join(' · ') || 'Livro'}</p>
+      <p class="script genero">${[l.genero, l.paginas ? `${l.paginas} páginas` : ''].filter(Boolean).map(esc).join(' · ') || 'um livro'}</p>
       <h2>${esc(l.titulo)}</h2>
       <p class="autor">${esc(l.autor) || 'Autor desconhecido'}</p>
-      ${notaAtual(l) ? `<div style="display:flex;align-items:center;gap:12px">${starsHTML(notaAtual(l), { size: 'lg' })}<b style="font-family:var(--serif);font-size:1.5rem">${fmtNota(notaAtual(l))}</b>${conc.length > 1 ? '<span class="muted">nota mais recente</span>' : ''}</div>` : ''}
+      ${notaAtual(l) ? `<div class="nota-topo">${starsHTML(notaAtual(l), { size: 'lg' })}<b>${fmtNota(notaAtual(l))}</b>${conc.length > 1 ? '<span class="script" style="font-size:.75rem">nota mais recente</span>' : ''}</div>` : ''}
       ${evolucao}
       ${ord.length ? `<div class="leitura-tabs" role="tablist">${ord.map((x, i) => `
-        <button role="tab" class="${x.id === ui.aba ? 'ativo' : ''}" data-action="aba" data-lid="${x.id}">${ordinal(i + 1)} leitura ${x.fim ? (x.estrelas ? `<span style="color:var(--gold)">★</span>${fmtNota(x.estrelas)}` : '') : '<span class="pill lendo">agora</span>'}</button>`).join('')}</div>
+        <button role="tab" class="${x.id === ui.aba ? 'ativo' : ''}" data-action="aba" data-lid="${x.id}">${ordinal(i + 1)} leitura ${x.fim ? (x.estrelas ? `★ ${fmtNota(x.estrelas)}` : '') : '<span class="pill lendo">agora</span>'}</button>`).join('')}</div>
         ${paginaLeitura(l, ord.find((x) => x.id === ui.aba) || ord[ord.length - 1], ord)}`
-        : `<div class="journal" style="padding:28px;text-align:center"><p class="muted" style="margin:0">Ainda não há leituras deste livro. Quando começar, sua página de diário aparece aqui.</p></div>`}
+        : `<div class="journal" style="padding:34px;text-align:center"><p class="script" style="margin:0">ainda não há leituras deste livro... quando começar, a página do diário aparece aqui ✿</p></div>`}
     </div>
   </div>`;
 }
@@ -452,14 +497,14 @@ function paginaLeitura(l, x, ord) {
     <div class="jrow"><span class="jlbl">período</span><span class="jval">${fmtData(x.inicio)} → ${x.fim ? fmtData(x.fim) : 'em andamento'}${x.fim && x.inicio ? ` <span class="muted">(${dias(x.inicio, x.fim)} dias)</span>` : ''}</span></div>
     <div class="jrow"><span class="jlbl">nota</span>${x.estrelas ? starsHTML(x.estrelas, { size: 'lg' }) : '<span class="muted">ainda sem nota</span>'}</div>
     ${temCrit ? `<div class="jrow"><span class="jlbl">critérios</span><div class="crit-grid">${CRITERIOS.map(([k, t]) => `
-      <div class="crit"><span>${t} ${delta(k)}</span>${starsHTML(x.criterios?.[k] || 0, { variant: 'blue', size: 'sm' })}</div>`).join('')}</div></div>` : ''}
+      <div class="crit"><span>${t.toLowerCase()} ${delta(k)}</span>${starsHTML(x.criterios?.[k] || 0, { variant: 'blue', size: 'sm' })}</div>`).join('')}</div></div>` : ''}
     ${x.personagem ? `<div class="jrow"><span class="jlbl">personagem fav.</span><span class="jval">${esc(x.personagem)}</span></div>` : ''}
     ${x.citacao ? `<div class="jrow"><span class="jlbl">citação fav.</span><blockquote>“${esc(x.citacao)}”</blockquote></div>` : ''}
     ${x.notas ? `<div class="jrow"><span class="jlbl">impressões</span><div class="notas">${esc(x.notas)}</div></div>` : ''}
-    ${x.recomenda != null ? `<div class="jrow"><span class="jlbl">recomendaria?</span><span class="rec ${x.recomenda ? 'sim' : ''}">✓</span><span class="rec ${x.recomenda ? '' : 'nao'}">✕</span></div>` : ''}
+    ${x.recomenda != null ? `<div class="jrow"><span class="jlbl">recomendaria?</span><span class="rec sim ${x.recomenda ? 'on' : ''}">✓</span><span class="rec nao ${x.recomenda ? '' : 'on'}">✕</span></div>` : ''}
   </div>
   <div class="leitura-acoes">
-    <button class="btn small" data-action="editar-leitura" data-id="${l.id}" data-lid="${x.id}">✎ ${x.fim ? 'Editar esta avaliação' : 'Editar leitura'}</button>
+    <button class="btn small pink" data-action="editar-leitura" data-id="${l.id}" data-lid="${x.id}">✎ ${x.fim ? 'Editar esta avaliação' : 'Editar leitura'}</button>
     <button class="btn small ghost danger" data-action="excluir-leitura" data-id="${l.id}" data-lid="${x.id}">Excluir esta leitura</button>
   </div>`;
 }
@@ -489,7 +534,7 @@ function abrirFormLivro(id = null) {
   ui.resultados = [];
   const d = $('#modal-livro');
   d.innerHTML = `<form method="dialog" id="form-livro">
-    <div class="modal-head"><h2>${l ? 'Editar livro' : 'Novo livro'}</h2><button type="button" class="x" data-action="fechar" aria-label="Fechar">×</button></div>
+    <div class="modal-head"><div><p class="script">${l ? 'mudando umas coisinhas...' : 'um livro novo na estante!'}</p><h2>${l ? 'Editar livro' : 'Novo livro'}</h2></div><button type="button" class="x" data-action="fechar" aria-label="Fechar">×</button></div>
     <div class="modal-body">
       <div class="field">
         <label for="q-online">Buscar dados e capa online</label>
@@ -506,7 +551,7 @@ function abrirFormLivro(id = null) {
             <button type="button" class="btn small" data-action="capa-url">Colar link</button>
             <button type="button" class="btn small ghost" data-action="remover-capa">Remover</button>
           </div>
-          <p class="muted" style="font-size:.8rem;margin:8px 0 0">Sem capa? Geramos uma com a cor do livro. A cor da capa também pinta a lombada na estante.</p>
+          <p class="dica">sem capa? a gente cria uma fofinha. e a cor da capa pinta a lombada na estante ✿</p>
         </div>
       </div>
       <div class="field"><label for="f-titulo">Título *</label><input id="f-titulo" name="titulo" required value="${esc(l?.titulo || '')}"></div>
@@ -531,7 +576,7 @@ function abrirFormLivro(id = null) {
 function atualizarPreviewCapa() {
   const f = $('#form-livro'); if (!f) return;
   const fake = { titulo: f.titulo.value || 'Título', autor: f.autor.value || '', capa: ui.formLivro.capa, cor: ui.formLivro.cor };
-  $('#capa-preview').innerHTML = `<div class="tilt">${capaHTML(fake)}</div>`;
+  $('#capa-preview').innerHTML = polaroidHTML(fake, { r: -4, legenda: false });
 }
 function salvarLivro(form) {
   const dados = {
@@ -632,15 +677,15 @@ function abrirFormLeitura(livroId, leituraId, { concluir = false, passada = fals
   const titulo = concluir ? `Terminou! Como foi a ${ordinal(n)} leitura?` : x ? `${ordinal(n)} leitura` : `Registrar ${ordinal(n)} leitura`;
   const d = $('#modal-leitura');
   d.innerHTML = `<form method="dialog" id="form-leitura">
-    <div class="modal-head"><div><p class="eyebrow" style="margin:0">${esc(l.titulo)}</p><h2>${titulo}</h2></div><button type="button" class="x" data-action="fechar" aria-label="Fechar">×</button></div>
+    <div class="modal-head"><div><p class="script">${esc(l.titulo)}</p><h2>${titulo}</h2></div><button type="button" class="x" data-action="fechar" aria-label="Fechar">×</button></div>
     <div class="modal-body">
       <div class="row">
         <div class="field"><label for="l-inicio">Comecei em</label><input id="l-inicio" type="date" name="inicio" value="${base.inicio || ''}"></div>
         <div class="field"><label for="l-fim">Terminei em ${!concluir && !passada ? '<span class="muted">(vazio = lendo)</span>' : ''}</label><input id="l-fim" type="date" name="fim" value="${base.fim || ''}" ${concluir || passada ? 'required' : ''}></div>
       </div>
       ${!concluir && !passada && !base.fim ? `<div class="field"><label for="l-pag">Página atual</label><input id="l-pag" type="number" min="0" name="paginaAtual" value="${base.paginaAtual || 0}"></div>` : ''}
-      <div class="nota-geral"><span class="lbl" style="font-size:.95rem;color:var(--ink)">Nota geral</span>${starsHTML(base.estrelas || 0, { input: true, name: 'estrelas', size: 'xl' })}</div>
-      <p class="lbl" style="margin:0 0 6px">Critérios <span class="muted" style="font-weight:500">— clique na metade da estrela para meia nota</span></p>
+      <div class="nota-geral mesh grain"><span class="lbl">Nota geral</span>${starsHTML(base.estrelas || 0, { input: true, name: 'estrelas', size: 'xl' })}</div>
+      <p class="lbl" style="margin:0 0 6px">Critérios <span class="script" style="text-transform:none;font-size:.72rem;letter-spacing:0">clique na metade da estrela pra meia nota</span></p>
       <div class="crit-grid" style="margin-bottom:16px">${CRITERIOS.map(([k, t]) => `<div class="crit"><span>${t}</span>${starsHTML(base.criterios[k] || 0, { input: true, name: k, variant: 'blue' })}</div>`).join('')}</div>
       <div class="field"><label for="l-pers">Personagem favorito</label><input id="l-pers" name="personagem" value="${esc(base.personagem)}"></div>
       <div class="field"><label for="l-cit">Citação favorita</label><textarea id="l-cit" name="citacao" rows="2">${esc(base.citacao)}</textarea></div>
@@ -828,9 +873,9 @@ function toast(msg, tipo = '') {
 }
 function confete() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const cores = ['#f2b705', '#b4532a', '#2f6db3', '#e9437a', '#3a8a4f', '#8a4fd1'];
+  const cores = ['#e8458b', '#f49ac1', '#b8b23e', '#f2703d', '#cdb0f0', '#ffcb2e', '#8f1d4a'];
   for (let i = 0; i < 110; i++) {
-    const c = document.createElement('i'); c.className = 'confete';
+    const c = document.createElement('i'); c.className = 'confete'; c.textContent = ''; c.style.borderRadius = i % 3 ? '50%' : '2px'; c.style.width = c.style.height = (8 + (i % 4) * 3) + 'px';
     c.style.background = cores[i % cores.length];
     document.body.appendChild(c);
     const x0 = innerWidth / 2, y0 = innerHeight * 0.55;
@@ -886,6 +931,21 @@ function exemplos() {
     L('Pequeno manual antirracista', 'Djamila Ribeiro', 'Não ficção', 136, [], 1),
   ];
 }
+
+
+/* ---------------- Cursor-bolha ---------------- */
+(() => {
+  const c = $('#cursor'); if (!c || matchMedia('(pointer: coarse)').matches) return;
+  let x = -100, y = -100, cx = x, cy = y;
+  document.addEventListener('pointermove', (e) => {
+    x = e.clientX; y = e.clientY; c.classList.toggle('on', !document.querySelector('dialog[open]'));
+    const alvo = e.target.closest('[data-cursor], .spine, .polaroid, .card-oferta, .t-item');
+    c.classList.toggle('big', !!alvo && !e.target.closest('input, textarea, select, .stars.input'));
+    c.querySelector('span').textContent = alvo ? (alvo.dataset.cursor || 'abrir') : '';
+  });
+  document.addEventListener('pointerleave', () => c.classList.remove('on'));
+  (function loop() { cx += (x - cx) * 0.2; cy += (y - cy) * 0.2; c.style.transform = `translate(${cx}px, ${cy}px)`; requestAnimationFrame(loop); })();
+})();
 
 /* ---------------- Início ---------------- */
 aplicarTema();
