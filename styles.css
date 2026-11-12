@@ -1131,3 +1131,11 @@ html:has(dialog[open]) { overflow: hidden; }
 @media (max-width: 700px) {
   .modal, .modal.wide { touch-action: pan-y; }
 }
+
+/* chave: bolinha centralizada no trilho */
+.chave { width: 50px; height: 28px; box-sizing: border-box; display: block; }
+.chave::after {
+  top: 50%; left: 3px; width: 18px; height: 18px; box-sizing: border-box; border-width: 2px;
+  transform: translateY(-50%); transition: transform .35s cubic-bezier(.3,1.6,.5,1), background .25s;
+}
+.check-crit input:checked + .chave::after { transform: translate(22px, -50%); }
