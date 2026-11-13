@@ -1327,3 +1327,8 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .fita-marcador b { font-size: .62rem; font-weight: 900; color: #fff; letter-spacing: .02em; }
 @media (max-width: 900px), (hover: none) { #fita-scroll { display: none !important; } }
+
+/* diário: a linha tracejada pausa no ano */
+.t-ano { width: fit-content; margin-left: auto; margin-right: auto; padding: 6px 28px 10px; background: var(--cream); z-index: 1; }
+.t-mes span { position: relative; z-index: 1; }
+@media (max-width: 760px) { .t-ano { padding: 4px 18px 8px; } }
