@@ -1256,3 +1256,74 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .resultados { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); }
 .resultados .pill { overflow-wrap: normal; word-break: normal; hyphens: none; letter-spacing: .02em; padding: 3px 7px; }
+
+/* =========================================================
+   Scroll animado (só desktop: a classe .scroll-fx só é ligada lá)
+   ========================================================= */
+.scroll-fx .hero { overflow: clip; }
+.scroll-fx .hero > div:first-child, .scroll-fx .hero-art > *, .scroll-fx .hero h1 span { will-change: transform; }
+
+/* títulos das seções: sobem por trás de uma "máscara" e o rabisco se escreve */
+.scroll-fx .fx-titulo h2 { transition: clip-path .9s cubic-bezier(.2,.9,.2,1), translate .9s cubic-bezier(.2,.9,.2,1); }
+.scroll-fx .fx-titulo:not(.visto) h2 { clip-path: inset(0 0 100% 0); translate: 0 40px; }
+.scroll-fx .fx-titulo h2 { clip-path: inset(0 0 -20% 0); }
+.scroll-fx .fx-titulo > .script { transition: clip-path 1.1s .35s cubic-bezier(.6,0,.3,1); clip-path: inset(0 0 0 0); }
+.scroll-fx .fx-titulo:not(.visto) > .script { clip-path: inset(0 100% 0 0); }
+
+/* balão "você está na página..." estoura */
+.scroll-fx .fx-balao { transition: scale .8s cubic-bezier(.3,1.7,.5,1), rotate .8s cubic-bezier(.3,1.7,.5,1), opacity .4s; }
+.scroll-fx .fx-balao:not(.visto) { scale: .55; rotate: -9deg; opacity: 0; }
+
+/* cards "colados" voando de lados opostos + carimbo da capa */
+.scroll-fx .fx-cola {
+  transition: translate 1s cubic-bezier(.2,1.25,.35,1) calc(var(--i) * .14s), scale 1s cubic-bezier(.2,1.25,.35,1) calc(var(--i) * .14s),
+    opacity .5s calc(var(--i) * .14s), transform .35s cubic-bezier(.3,1.6,.5,1), box-shadow .35s;
+}
+.scroll-fx .fx-cola:not(.visto) { opacity: 0; translate: calc(var(--de) * 220px) 90px; scale: .8; }
+.scroll-fx .fx-cola.visto .escudo { animation: carimbaEscudo .7s calc(.55s + var(--i) * .14s) cubic-bezier(.3,1.8,.5,1) both; }
+@keyframes carimbaEscudo { from { transform: translateY(-90px) scale(1.6) rotate(-30deg); opacity: 0; } 60% { opacity: 1; } }
+
+/* anel da meta: o centro surge, o traço é desenhado pela rolagem */
+.scroll-fx .meta-anel .val { transition: none; }
+.scroll-fx .fx-meta .centro { transition: scale .7s cubic-bezier(.3,1.7,.5,1), opacity .4s; }
+.scroll-fx .fx-meta:not(.visto) .centro { scale: .3; opacity: 0; }
+.scroll-fx .fx-meta .trk { transition: stroke-dashoffset 1.6s ease-out; stroke-dashoffset: 0; }
+.scroll-fx .fx-meta:not(.visto) .trk { stroke-dashoffset: 600; }
+
+/* adesivos caem do alto e quicam */
+.scroll-fx .fx-cai { transition: translate .9s cubic-bezier(.3,1.55,.5,1) calc(var(--i) * .12s), rotate .9s cubic-bezier(.3,1.55,.5,1) calc(var(--i) * .12s), opacity .3s calc(var(--i) * .12s); }
+.scroll-fx .fx-cai:not(.visto) { opacity: 0; translate: 0 -170px; rotate: calc(var(--r) - 35deg); }
+
+/* livrinhos só despencam quando a pilha aparece */
+.scroll-fx .fx-pilhas:not(.visto) .livrinho { animation-play-state: paused; }
+.scroll-fx .fx-pilhas .livrinho { animation-duration: .75s; }
+
+/* gêneros pipocam */
+.scroll-fx .fx-pop { transition: scale .55s cubic-bezier(.3,1.9,.5,1) calc(var(--i) * .07s), opacity .3s calc(var(--i) * .07s), transform .3s cubic-bezier(.3,1.8,.5,1); }
+.scroll-fx .fx-pop:not(.visto) { scale: 0; opacity: 0; }
+
+/* citação acende palavra por palavra no ritmo da rolagem */
+.scroll-fx .citacao blockquote { scale: calc(.92 + var(--fx-p, 0) * .08); transition: scale .2s linear; }
+.scroll-fx .citacao .palavra { display: inline-block; opacity: .16; filter: blur(3px); translate: 0 10px; transition: opacity .45s, filter .45s, translate .45s cubic-bezier(.3,1.6,.5,1); }
+.scroll-fx .citacao .palavra.acesa { opacity: 1; filter: none; translate: 0 0; }
+
+/* fila em leque: cards controlados pela rolagem */
+.scroll-fx #fx-fila > .card-oferta { will-change: translate, rotate; }
+
+/* marcador de página na lateral */
+#fita-scroll { display: none; }
+.scroll-fx #fita-scroll {
+  --lido: 0; display: block; position: fixed; right: 22px; top: 22vh; height: 56vh; width: 36px; z-index: 30;
+  opacity: 0; transition: opacity .4s; pointer-events: none;
+}
+.scroll-fx #fita-scroll.mostrar { opacity: 1; }
+.fita-trilho { position: absolute; left: 50%; top: 0; bottom: 0; translate: -50% 0; border-left: 3px dashed color-mix(in srgb, var(--stroke) 40%, transparent); }
+.fita-marcador {
+  position: absolute; left: 0; width: 36px; height: 58px; top: calc(var(--lido) * (100% - 58px));
+  background: var(--hot); border: 2px solid var(--stroke); border-top-width: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  display: grid; justify-items: center; align-content: start; padding-top: 10px;
+  filter: drop-shadow(3px 3px 0 var(--stroke));
+}
+.fita-marcador b { font-size: .62rem; font-weight: 900; color: #fff; letter-spacing: .02em; }
+@media (max-width: 900px), (hover: none) { #fita-scroll { display: none !important; } }

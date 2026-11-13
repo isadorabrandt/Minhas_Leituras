@@ -139,9 +139,12 @@ function render() {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('ativo', b.dataset.view === ui.view));
   renderFaixas();
   const app = $('#app');
-  if (!db.livros.length) { app.innerHTML = viewVazia(); return; }
-  app.innerHTML = `<div class="view">${({ inicio: viewInicio, estante: viewEstante, diario: viewDiario })[ui.view]()}</div>`;
-  if (ui.view === 'estante') renderLista();
+  if (!db.livros.length) app.innerHTML = viewVazia();
+  else {
+    app.innerHTML = `<div class="view">${({ inicio: viewInicio, estante: viewEstante, diario: viewDiario })[ui.view]()}</div>`;
+    if (ui.view === 'estante') renderLista();
+  }
+  document.dispatchEvent(new CustomEvent('ml:render', { detail: { view: db.livros.length ? ui.view : 'vazia' } }));
 }
 
 function renderFaixas() {
@@ -238,7 +241,7 @@ function viewInicio() {
   ${lendo.length ? `<section class="secao wrap">
     <div class="balao"><h2>Você está na ${lendo.map((l) => `página <span class="squiggle">${+leituraAtual(l).paginaAtual || 0}</span> de ${esc(l.titulo)}`).join(' &amp; na ')}.</h2>
       <p class="script">atualize aqui embaixo, sem cerimônia ↓</p></div>
-    <div class="cards3">${lendo.map(cardLendo).join('')}</div>
+    <div class="cards3" id="fx-lendo">${lendo.map(cardLendo).join('')}</div>
   </section>` : ''}
 
   <section class="secao mesh grain wavy">
@@ -276,14 +279,14 @@ function viewInicio() {
 
   ${cit ? `<section class="secao mesh dark grain wavy citacao"><div class="wrap">
     <span class="script">a citação do dia...</span>
-    <blockquote>“${esc(cit.leitura.citacao)}”</blockquote>
+    <blockquote>“${String(cit.leitura.citacao).split(/\s+/).filter(Boolean).map((w) => `<span class="palavra">${esc(w)}</span>`).join(' ')}”</blockquote>
     <p>— ${esc(cit.livro.titulo)}${cit.livro.autor ? `, ${esc(cit.livro.autor)}` : ''}</p>
   </div></section>` : ''}
 
   <section class="secao wrap">
     <div class="secao-titulo"><h2>Na fila de <span class="hl-hot">quero ler</span></h2><span class="script">${fila.length ? `${fila.length} ${fila.length === 1 ? 'livro esperando' : 'livros esperando'} por você` : 'sua lista de desejos está vazia'}</span>
       ${fila.length > 1 ? `<button type="button" class="btn tang btn-roleta" data-action="roleta"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>Sortear minha próxima leitura</button>` : ''}</div>
-    ${fila.length ? `<div class="cards3">${fila.map((l, i) => `
+    ${fila.length ? `<div class="cards3" id="fx-fila">${fila.map((l, i) => `
       <article class="card-oferta" data-action="abrir" data-id="${l.id}" tabindex="0">
         <div class="escudo">${capaHTML(l)}</div>
         <span class="script">${esc(l.genero || 'quero ler')}</span>
