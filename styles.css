@@ -1246,3 +1246,13 @@ html:has(dialog[open]) { overflow: hidden; }
 .sorteado .btn { white-space: normal; }
 .roleta-resultado { max-width: 100%; }
 .roleta-corpo { overflow: hidden; padding-top: 18px; } /* a roda girando não cria rolagem lateral */
+
+/* resultados da busca: etiqueta de gênero cabe no card */
+.resultados > button { min-width: 0; overflow-wrap: break-word; align-self: start; }
+.resultados { grid-auto-rows: max-content; align-content: start; }
+.resultados .pill {
+  display: inline-block; max-width: 100%; white-space: normal; text-align: center; line-height: 1.15;
+  padding: 3px 8px; letter-spacing: .03em; font-size: .55rem; overflow-wrap: break-word;
+}
+.resultados { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); }
+.resultados .pill { overflow-wrap: normal; word-break: normal; hyphens: none; letter-spacing: .02em; padding: 3px 7px; }
