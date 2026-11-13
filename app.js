@@ -817,11 +817,37 @@ function doGoogle(v = {}) {
     genero: generoDe(v.categories), ano: (v.publishedDate || '').slice(0, 4),
     capa: t ? t.replace('http:', 'https:').replace('&edge=curl', '') : '' };
 }
+/* relevância: quanto o resultado combina com o que foi digitado */
+const PALAVRAS_VAZIAS = new Set(['o', 'a', 'os', 'as', 'de', 'do', 'da', 'dos', 'das', 'e', 'um', 'uma', 'the', 'of', 'and', 'el', 'la', 'le']);
+const normBusca = (s) => semAcento(s).replace(/[^a-z0-9]+/g, ' ').trim();
+function relevancia(r, q) {
+  const qn = normBusca(q), t = normBusca(r.titulo), au = normBusca(r.autor);
+  const palavras = qn.split(' ').filter((w) => w && !PALAVRAS_VAZIAS.has(w));
+  if (!palavras.length) return 1;
+  const tem = (texto, w) => (` ${texto} `).includes(` ${w} `) || (w.length > 3 && texto.includes(w));
+  const noTitulo = palavras.filter((w) => tem(t, w)).length / palavras.length;
+  const noAutor = palavras.filter((w) => tem(au, w)).length / palavras.length;
+  const noTodo = palavras.filter((w) => tem(`${t} ${au}`, w)).length / palavras.length;
+  let s = noTitulo * 40 + noAutor * 25 + (noTodo === 1 ? 20 : 0);
+  const base = t.split(/ (?:volume|vol|livro|book) /)[0];
+  if (t === qn || base === qn) s += 60; else if (t.startsWith(qn)) s += 35; else if (t.includes(qn)) s += 20;
+  if (r.capa) s += 6;
+  if (r.pt) s += 5;
+  if (r.paginas) s += 2;
+  return s;
+}
+function doOpenLibrary(d) {
+  return {
+    titulo: d.title, autor: (d.author_name || []).slice(0, 2).join(', '), paginas: d.number_of_pages_median || '',
+    genero: generoDe((d.subject || []).slice(0, 12)), ano: d.first_publish_year ? String(d.first_publish_year) : '',
+    capa: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : '', pt: (d.language || []).includes('por'),
+  };
+}
 async function buscarOnline(mais = false) {
   const box = $('#resultados'); if (!box) return;
   if (!mais) {
     const q = $('#q-online').value.trim(); if (!q) return;
-    ui.busca = { q, pagina: 0, vistos: new Set(), temMais: true, token: Symbol() };
+    ui.busca = { q, pagina: 0, temMais: true, token: Symbol() };
     ui.resultados = [];
     box.innerHTML = '<span class="loading"></span>';
   } else {
@@ -831,42 +857,48 @@ async function buscarOnline(mais = false) {
   }
   const { q, pagina, token } = ui.busca;
   const enc = encodeURIComponent(q), inicio = pagina * POR_PAGINA;
+  const G = 'https://www.googleapis.com/books/v1/volumes';
+  const OL = 'https://openlibrary.org/search.json';
+  const camposOL = 'fields=title,author_name,cover_i,number_of_pages_median,subject,first_publish_year,language';
   const fontes = await Promise.allSettled([
-    comTempo(`https://www.googleapis.com/books/v1/volumes?q=${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&orderBy=relevance`),
-    comTempo(`https://www.googleapis.com/books/v1/volumes?q=${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&langRestrict=pt`),
-    comTempo(`https://openlibrary.org/search.json?q=${enc}&limit=${POR_PAGINA}&page=${pagina + 1}&fields=title,author_name,cover_i,number_of_pages_median,subject,first_publish_year`),
+    comTempo(`${G}?q=intitle:${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&orderBy=relevance&langRestrict=pt`),
+    comTempo(`${G}?q=intitle:${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&orderBy=relevance`),
+    comTempo(`${G}?q=${enc}&maxResults=${POR_PAGINA}&startIndex=${inicio}&printType=books&orderBy=relevance`),
+    comTempo(`${OL}?title=${enc}&limit=${POR_PAGINA}&page=${pagina + 1}&${camposOL}`),
+    comTempo(`${OL}?q=${enc}&limit=${POR_PAGINA}&page=${pagina + 1}&${camposOL}`),
   ]);
   if (ui.busca?.token !== token) return; // a pessoa já buscou outra coisa
-  const novos = [];
-  const [gb, gbPt, ol] = fontes;
+  const [gPt, gTit, gGeral, olTit, olGeral] = fontes;
   const lista = [];
-  if (gbPt.status === 'fulfilled') (gbPt.value.items || []).forEach((it) => lista.push(doGoogle(it.volumeInfo)));
-  if (gb.status === 'fulfilled') (gb.value.items || []).forEach((it) => lista.push(doGoogle(it.volumeInfo)));
-  if (ol.status === 'fulfilled') (ol.value.docs || []).forEach((d) => lista.push({
-    titulo: d.title, autor: (d.author_name || []).slice(0, 2).join(', '), paginas: d.number_of_pages_median || '',
-    genero: generoDe((d.subject || []).slice(0, 12)), ano: d.first_publish_year ? String(d.first_publish_year) : '',
-    capa: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : '',
-  }));
+  const deGoogle = (f, pt) => { if (f.status === 'fulfilled') (f.value.items || []).forEach((it) => lista.push({ ...doGoogle(it.volumeInfo), pt: pt || it.volumeInfo?.language === 'pt' })); };
+  deGoogle(gPt, true); deGoogle(gTit); deGoogle(gGeral);
+  [olTit, olGeral].forEach((f) => { if (f.status === 'fulfilled') (f.value.docs || []).forEach((d) => lista.push(doOpenLibrary(d))); });
+
+  // junta repetidos (completando capa/páginas/gênero de uma fonte com a outra)
   const porChave = new Map(ui.resultados.map((r) => [chaveLivro(r), r]));
   lista.filter((r) => r.titulo).forEach((r) => {
-    const k = chaveLivro(r);
-    const ja = porChave.get(k);
-    if (ja) { for (const c of ['capa', 'paginas', 'genero', 'ano']) if (!ja[c] && r[c]) ja[c] = r[c]; return; }
-    porChave.set(k, r); novos.push(r);
+    const k = chaveLivro(r), ja = porChave.get(k);
+    if (ja) { for (const c of ['capa', 'paginas', 'genero', 'ano', 'pt']) if (!ja[c] && r[c]) ja[c] = r[c]; return; }
+    porChave.set(k, r); ui.resultados.push(r);
   });
-  novos.sort((a, b) => (b.capa ? 1 : 0) - (a.capa ? 1 : 0));
-  ui.resultados.push(...novos);
+  // ordena por relevância e esconde o que não tem nada a ver com a busca
+  ui.resultados.forEach((r) => { r.nota = relevancia(r, q); });
+  const bons = ui.resultados.filter((r) => r.nota >= 30);
+  const parecidos = ui.resultados.filter((r) => r.nota >= 15);
+  ui.resultados = (bons.length ? bons : parecidos).sort((x, y) => y.nota - x.nota);
+
   const cheia = (f, campo) => f.status === 'fulfilled' && (f.value[campo] || []).length >= POR_PAGINA;
-  ui.busca.temMais = (cheia(gb, 'items') || cheia(gbPt, 'items') || cheia(ol, 'docs')) && pagina < 9;
+  ui.busca.temMais = fontes.some((f, i) => cheia(f, i < 3 ? 'items' : 'docs')) && pagina < 9;
+  const fechar = '<button type="button" class="fechar-busca" data-action="fechar-busca" aria-label="Fechar resultados da busca">× fechar</button>';
   if (!ui.resultados.length) {
     const falhou = fontes.every((f) => f.status === 'rejected');
-    box.innerHTML = `<p class="muted" style="grid-column:1/-1">${falhou ? 'Não consegui falar com as bibliotecas online agora. Tente de novo em instantes.' : 'Nada encontrado. Tente outro termo ou preencha à mão 🙂'}</p>`;
+    box.innerHTML = `<div class="resultados-topo"><p class="resultados-info">${falhou ? 'Não consegui falar com as bibliotecas online agora. Tente de novo em instantes.' : 'Não encontrei esse livro. Tente outro termo ou preencha à mão logo abaixo.'}</p>${fechar}</div>`;
     return;
   }
-  box.innerHTML = `<p class="resultados-info">${ui.resultados.length} livros encontrados${ui.busca.temMais ? '' : ' — fim da lista'}</p>`
+  box.innerHTML = `<div class="resultados-topo"><p class="resultados-info">${ui.resultados.length} ${ui.resultados.length === 1 ? 'livro encontrado' : 'livros encontrados'}${ui.busca.temMais ? '' : ' — fim da lista'}</p>${fechar}</div>`
     + ui.resultados.map((r, i) => `<button type="button" data-action="escolher-resultado" data-i="${i}">
     ${r.capa ? `<img src="${esc(r.capa)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="sem-capa" style="background:${PALETA[i % PALETA.length]}"></div>`}
-    <b>${esc(r.titulo).slice(0, 48)}</b><br><span class="muted">${esc(r.autor).slice(0, 30)}${r.ano ? ` · ${esc(r.ano)}` : ''}</span>${r.genero ? `<br><span class="pill" style="margin-top:4px;font-size:.55rem">${esc(r.genero)}</span>` : ''}</button>`).join('')
+    <b>${esc(r.titulo).slice(0, 60)}</b><br><span class="muted">${esc(r.autor).slice(0, 40)}${r.ano ? ` · ${esc(r.ano)}` : ''}</span>${r.genero ? `<br><span class="pill" style="margin-top:4px">${esc(r.genero)}</span>` : ''}</button>`).join('')
     + (ui.busca.temMais ? '<button type="button" class="btn small mais-resultados" id="mais-resultados" data-action="mais-resultados">Ver mais livros</button>' : '');
 }
 function escolherResultado(i) {
@@ -875,7 +907,7 @@ function escolherResultado(i) {
   if (r.autor) f.autor.value = r.autor;
   if (r.paginas) f.paginas.value = r.paginas;
   if (r.genero) f.genero.value = r.genero;
-  $('#resultados').innerHTML = '';
+  $('#resultados').innerHTML = ''; ui.busca = null;
   if (r.capa) definirCapa(r.capa, true); else atualizarPreviewCapa();
 }
 
@@ -1010,6 +1042,7 @@ const acoes = {
   'buscar-online': () => buscarOnline(),
   'escolher-resultado': (t) => escolherResultado(+t.dataset.i),
   'mais-resultados': () => buscarOnline(true),
+  'fechar-busca': () => { ui.busca = null; ui.resultados = []; const b = $('#resultados'); if (b) b.innerHTML = ''; $('#f-titulo')?.focus({ preventScroll: true }); },
   'capa-url': () => { const u = prompt('Cole o link (URL) da imagem da capa:'); if (u) definirCapa(u.trim(), true); },
   'remover-capa': () => { ui.formLivro.capa = ''; ui.formLivro.cor = ''; atualizarPreviewCapa(); },
   tema: () => {
@@ -1049,7 +1082,14 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.menu')) fecharMenu();
 });
 // fecha modal clicando no fundo
-document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+// fecha ao clicar no fundo escuro — só se o clique COMEÇOU e TERMINOU fora da janela
+// (antes, selecionar um texto arrastando o mouse para fora fechava a janela)
+const foraDaJanela = (d, e) => { const r = d.getBoundingClientRect(); return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom; };
+document.querySelectorAll('dialog').forEach((d) => {
+  let comecouFora = false;
+  d.addEventListener('pointerdown', (e) => { comecouFora = e.target === d && foraDaJanela(d, e); });
+  d.addEventListener('click', (e) => { if (comecouFora && e.target === d && foraDaJanela(d, e)) d.close(); comecouFora = false; });
+});
 
 document.addEventListener('change', (e) => {
   const t = e.target;
@@ -1091,6 +1131,12 @@ document.addEventListener('submit', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'q-online') { e.preventDefault(); buscarOnline(); }
+  else if (e.key === 'Enter' && e.target.closest?.('#form-livro') && e.target.matches('input:not([type=checkbox]):not([type=radio])')) {
+    e.preventDefault(); // Enter/“Ir” do teclado não salva o livro sem querer
+    const campos = [...e.target.form.querySelectorAll('input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([hidden]), textarea, select')].filter((c) => c.offsetParent);
+    const prox = campos[campos.indexOf(e.target) + 1];
+    if (prox) prox.focus(); else e.target.blur();
+  }
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('article[data-action]')) { e.preventDefault(); e.target.click(); }
 });
 $('#modal-detalhe').addEventListener('close', () => { ui.aberto = null; });

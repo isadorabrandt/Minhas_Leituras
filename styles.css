@@ -1356,3 +1356,22 @@ html:has(dialog[open]) { overflow: hidden; }
 /* diário: grupo "em algum momento do ano" */
 .t-mes.sem-mes span { background: var(--lilac); color: #3d0a1f; }
 .sem-mes-nota { text-align: center; margin: 14px 0 0; font-size: 1.05rem; }
+
+/* datas: rótulo em cima e dia·mês·ano logo abaixo, igual nos dois campos */
+.campo-data-topo { flex-direction: column; align-items: flex-start; gap: 6px; }
+.row:has(.campo-data) { align-items: start; }
+
+/* textura nunca "vaza" pelos cantos arredondados (aparecia um quadradinho cinza) */
+.grain::before { border-radius: inherit; }
+.nota-geral { overflow: hidden; }
+
+/* topo dos resultados da busca com botão de fechar */
+.resultados-topo { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: -6px; z-index: 2; background: var(--paper); padding: 4px 0 6px; }
+.resultados-topo .resultados-info { grid-column: auto; }
+.fechar-busca {
+  flex: none; border: 2px solid var(--stroke); border-radius: 999px; background: var(--pink); color: #3d0a1f;
+  padding: 4px 12px; font-weight: 800; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em;
+  box-shadow: 2px 2px 0 var(--stroke); transition: transform .25s cubic-bezier(.3,1.8,.5,1);
+}
+.fechar-busca:hover { transform: rotate(-4deg) scale(1.06); }
+.resultados .fechar-busca { text-align: center; padding: 4px 12px; font-size: .72rem; background: var(--pink); }
