@@ -24,6 +24,8 @@ Com o Supabase configurado, o app abre numa **tela de login**: cada pessoa cria 
 2. Em **SQL Editor → New query**, cole todo o conteúdo de `supabase/schema.sql` e clique em **Run**. Isso cria as tabelas `perfis`, `livros` e `leituras` com as regras de segurança (cada usuário só vê os próprios dados).
 3. Em **Project Settings → API**, copie a **Project URL** e a chave **anon public** e cole em `config.js`.
 4. Em **Authentication → URL Configuration**, coloque o endereço do site da Vercel em **Site URL** (e também em **Redirect URLs**), para os links de confirmação de e-mail e de "esqueci minha senha" voltarem para o app.
+**Atualizações do banco:** se você criou o banco antes de novembro/2026, rode também `supabase/2026-11-datas-sem-dia.sql` no SQL Editor (permite datas só com mês ou só com ano).
+
 5. Opcional: em **Authentication → Providers → Email**, desligue "Confirm email" se não quiser exigir confirmação por e-mail.
 
 A chave `anon` é pública por natureza (fica no navegador); quem protege os dados é o RLS do `schema.sql`. **Nunca** coloque a chave `service_role` no `config.js`.

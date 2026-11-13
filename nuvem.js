@@ -15,6 +15,7 @@ const Nuvem = (() => {
 
   let usuario = null;
   let foto = { livros: new Map(), leituras: new Map(), perfil: '' };
+  let semPrecisao = false; // vira true se o banco ainda não tiver as colunas novas
   let timer = null, sincronizando = false, pendente = false;
   let abaLogin = 'entrar';
   const veioDoLinkDeSenha = location.hash.includes('type=recovery');
@@ -31,6 +32,7 @@ const Nuvem = (() => {
     pagina_atual: +x.paginaAtual || 0, estrelas: +x.estrelas || 0, criterios: x.criterios || {},
     personagem: x.personagem || null, citacao: x.citacao || null, notas: x.notas || null,
     recomenda: x.recomenda ?? null,
+    ...(semPrecisao ? {} : { inicio_precisao: x.inicioPrecisao || 'dia', fim_precisao: x.fimPrecisao || 'dia' }),
   });
   const linhaPerfil = () => ({
     user_id: usuario.id, nome: nome() || null, metas: db.metas || {}, tema: db.tema || null,
@@ -42,7 +44,7 @@ const Nuvem = (() => {
   const paraLeitura = (r) => ({
     id: r.id, inicio: r.inicio, fim: r.fim, paginaAtual: r.pagina_atual || 0, estrelas: +r.estrelas || 0,
     criterios: r.criterios || {}, personagem: r.personagem || '', citacao: r.citacao || '', notas: r.notas || '',
-    recomenda: r.recomenda,
+    recomenda: r.recomenda, inicioPrecisao: r.inicio_precisao || 'dia', fimPrecisao: r.fim_precisao || 'dia',
   });
 
   function estadoAtual() {
@@ -80,7 +82,18 @@ const Nuvem = (() => {
       if (delLeituras.length) await emLotes(delLeituras, (ids) => sb.from('leituras').delete().in('id', ids), 100);
       if (delLivros.length) await emLotes(delLivros, (ids) => sb.from('livros').delete().in('id', ids), 100);
       if (upLivros.length) await emLotes(upLivros, (rows) => sb.from('livros').upsert(rows, { onConflict: 'user_id,id' }));
-      if (upLeituras.length) await emLotes(upLeituras, (rows) => sb.from('leituras').upsert(rows, { onConflict: 'user_id,id' }));
+      if (upLeituras.length) {
+        try { await emLotes(upLeituras, (rows) => sb.from('leituras').upsert(rows, { onConflict: 'user_id,id' })); }
+        catch (e) {
+          // banco ainda sem as colunas de precisão da data: salva sem elas e avisa uma vez
+          if (!semPrecisao && /precisao/i.test(e?.message || '')) {
+            semPrecisao = true;
+            const sem = upLeituras.map(({ inicio_precisao, fim_precisao, ...r }) => r);
+            await emLotes(sem, (rows) => sb.from('leituras').upsert(rows, { onConflict: 'user_id,id' }));
+            toast('Para guardar datas só com mês ou ano, rode a atualização do banco (veja o README).', 'erro');
+          } else throw e;
+        }
+      }
       if (agora.perfil !== foto.perfil) ok(await sb.from('perfis').upsert(JSON.parse(agora.perfil), { onConflict: 'user_id' }));
 
       foto = agora;

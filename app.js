@@ -59,12 +59,79 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const fmtNota = (n) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const ordinal = (n) => `${n}ª`;
-function fmtData(iso) {
+/* Datas com precisão: 'dia' (12 nov 2026), 'mes' (nov 2026) ou 'ano' (2026).
+   Guardamos sempre uma data ISO "representativa": começo do período para o início,
+   fim do período para o término — assim ordenar e contar por ano continuam funcionando. */
+const PRECISOES = { dia: 'dia', mes: 'mês', ano: 'ano' };
+function fmtData(iso, prec = 'dia') {
   if (!iso) return '—';
   const [a, m, d] = iso.split('-').map(Number);
+  if (prec === 'ano') return String(a);
+  if (prec === 'mes') return `${MESES[m - 1]} ${a}`;
   return `${d} ${MESES[m - 1]} ${a}`;
 }
 function dias(a, b) { return Math.max(1, Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1); }
+const ultimoDia = (a, m) => new Date(a, m, 0).getDate();
+function montarData(a, m, d, prec, papel) {
+  if (!a) return null;
+  const p2 = (n) => String(n).padStart(2, '0');
+  if (prec === 'ano') return papel === 'fim' ? `${a}-12-31` : `${a}-01-01`;
+  if (prec === 'mes') { if (!m) return null; return `${a}-${p2(m)}-${p2(papel === 'fim' ? ultimoDia(a, m) : 1)}`; }
+  return d && m ? `${a}-${p2(m)}-${p2(d)}` : null;
+}
+/* "12 nov → 20 nov 2026", "nov 2026", "2023", "terminei em 2024"... */
+function fmtPeriodo(x) {
+  const pi = x.inicioPrecisao || 'dia', pf = x.fimPrecisao || 'dia';
+  const ini = x.inicio ? fmtData(x.inicio, pi) : null;
+  if (!x.fim) return ini ? `desde ${ini}` : 'em andamento';
+  const fim = fmtData(x.fim, pf);
+  if (!ini || ini === fim) return pf === 'dia' && !ini ? `terminei em ${fim}` : fim;
+  return `${ini} → ${fim}`;
+}
+/* duração só faz sentido quando as duas datas têm dia */
+function duracao(x) {
+  if (!x.inicio || !x.fim || (x.inicioPrecisao || 'dia') !== 'dia' || (x.fimPrecisao || 'dia') !== 'dia') return 0;
+  return dias(x.inicio, x.fim);
+}
+
+/* campo de data com seletor de precisão */
+function campoData(nome, rotulo, iso, prec = 'dia', { dica = '', obrigatorio = false } = {}) {
+  const [a, m, d] = iso ? iso.split('-').map(Number) : [];
+  const anoAtual = new Date().getFullYear();
+  const anos = Array.from({ length: anoAtual - 1939 }, (_, i) => anoAtual - i);
+  const optAnos = (sel) => `<option value="">ano</option>${anos.map((y) => `<option ${y === sel ? 'selected' : ''}>${y}</option>`).join('')}`;
+  const optMeses = MESES_LONGOS.map((t, i) => `<option value="${i + 1}" ${i + 1 === m && prec !== 'ano' ? 'selected' : ''}>${t}</option>`).join('');
+  return `<div class="field campo-data" data-campo="${nome}" data-prec="${prec}" ${obrigatorio ? 'data-obrigatorio="1"' : ''}>
+    <div class="campo-data-topo"><span class="lbl" id="lbl-${nome}">${rotulo} ${dica}</span>
+      <div class="prec" role="group" aria-label="Precisão da data">${Object.entries(PRECISOES).map(([k, t]) => `<button type="button" data-action="prec" data-p="${k}" aria-pressed="${k === prec}">${t}</button>`).join('')}</div></div>
+    <input type="date" class="cd-dia" aria-labelledby="lbl-${nome}" value="${prec === 'dia' && iso ? iso : ''}">
+    <div class="cd-mes"><select class="cd-m" aria-label="Mês"><option value="">mês</option>${optMeses}</select><select class="cd-a1" aria-label="Ano">${optAnos(prec === 'mes' ? a : null)}</select></div>
+    <select class="cd-ano" aria-label="Ano">${optAnos(prec === 'ano' ? a : null)}</select>
+  </div>`;
+}
+/* lê o campo e devolve { iso, prec } (iso = null se vazio) */
+function lerCampoData(raiz, nome, papel) {
+  const c = raiz.querySelector(`.campo-data[data-campo="${nome}"]`);
+  if (!c) return { iso: null, prec: 'dia' };
+  const prec = c.dataset.prec;
+  if (prec === 'dia') return { iso: c.querySelector('.cd-dia').value || null, prec };
+  if (prec === 'mes') return { iso: montarData(+c.querySelector('.cd-a1').value, +c.querySelector('.cd-m').value, 0, 'mes', papel), prec };
+  return { iso: montarData(+c.querySelector('.cd-ano').value, 0, 0, 'ano', papel), prec };
+}
+/* troca a precisão aproveitando o que já foi preenchido */
+function trocarPrecisao(btn) {
+  const c = btn.closest('.campo-data'); if (!c) return;
+  const atual = lerCampoData(c.parentElement, c.dataset.campo, 'inicio');
+  const [a, m] = atual.iso ? atual.iso.split('-').map(Number) : [];
+  const nova = btn.dataset.p;
+  c.dataset.prec = nova;
+  c.querySelectorAll('.prec button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.p === nova));
+  if (a) {
+    if (nova === 'ano') c.querySelector('.cd-ano').value = a;
+    if (nova === 'mes') { c.querySelector('.cd-a1').value = a; if (atual.prec !== 'ano') c.querySelector('.cd-m').value = m; }
+    if (nova === 'dia' && atual.prec === 'dia') c.querySelector('.cd-dia').value = atual.iso;
+  }
+}
 function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
 const corDe = (l) => l.cor || PALETA[hash(l.titulo + l.autor) % PALETA.length];
 function textoSobre(cor) {
@@ -205,7 +272,8 @@ function viewInicio() {
   const C = 2 * Math.PI * 88;
   const mesAgora = ano === new Date().getFullYear() ? new Date().getMonth() : -1;
   const porMes = Array.from({ length: 12 }, () => []);
-  doAno.forEach((x) => porMes[+x.leitura.fim.slice(5, 7) - 1].push(x));
+  const semMes = doAno.filter((x) => x.leitura.fimPrecisao === 'ano').length;
+  doAno.forEach((x) => { if (x.leitura.fimPrecisao !== 'ano') porMes[+x.leitura.fim.slice(5, 7) - 1].push(x); });
 
   const gen = {};
   doAno.forEach((x) => { const g = x.livro.genero || 'Sem gênero'; gen[g] = (gen[g] || 0) + 1; });
@@ -274,6 +342,7 @@ function viewInicio() {
         ${itens.length ? `<span class="num">${itens.length}</span>` : ''}
       </div>`).join('')}
     </div>
+    ${semMes ? `<p class="script sem-mes-nota">+ ${semMes} ${semMes === 1 ? 'leitura' : 'leituras'} de ${ano} sem mês definido</p>` : ''}
     ${generos.length ? `<div class="generos">${generos.map(([g, n]) => `<span class="pill" style="--n:${n}">${esc(g)} · ${n}</span>`).join('')}</div>` : ''}
   </section>
 
@@ -305,10 +374,10 @@ function cardLendo(l) {
   const tot = +l.paginas || 0;
   const pag = Math.min(+lt.paginaAtual || 0, tot || Infinity);
   const pct = tot ? Math.round((pag / tot) * 100) : 0;
-  const d = dias(lt.inicio, hoje());
+  const d = lt.inicio && (lt.inicioPrecisao || 'dia') === 'dia' ? dias(lt.inicio, hoje()) : 0;
   return `<article class="card-oferta" data-action="abrir" data-id="${l.id}" tabindex="0">
     <div class="escudo">${capaHTML(l)}</div>
-    <span class="script">${n > 1 ? `${ordinal(n)} leitura · ` : ''}${d === 1 ? 'começou hoje' : `há ${d} dias`}</span>
+    <span class="script">${n > 1 ? `${ordinal(n)} leitura · ` : ''}${!d ? fmtPeriodo(lt) : d === 1 ? 'começou hoje' : `há ${d} dias`}</span>
     <h3>${esc(l.titulo)}</h3>
     <p>${esc(l.autor)}</p>
     <div class="progresso"><span style="width:${pct}%"></span></div>
@@ -417,7 +486,10 @@ function capaCardHTML(l, i) {
 function viewDiario() {
   const itens = todasLeituras();
   const andamento = itens.filter((x) => !x.leitura.fim);
-  const feitas = itens.filter((x) => x.leitura.fim).sort((a, b) => b.leitura.fim.localeCompare(a.leitura.fim));
+  // por ano (mais recente primeiro); dentro do ano, as que têm mês vêm antes das que só têm o ano
+  const soAno = (x) => x.leitura.fimPrecisao === 'ano';
+  const feitas = itens.filter((x) => x.leitura.fim).sort((a, b) => b.leitura.fim.slice(0, 4).localeCompare(a.leitura.fim.slice(0, 4))
+    || (soAno(a) - soAno(b)) || b.leitura.fim.localeCompare(a.leitura.fim));
   let lado = 0;
   let html = `<section class="cabecalho mesh grain">
     <div><p class="script">querido diário...</p><h1>Diário de <span class="hl-hot">leituras</span></h1>
@@ -433,7 +505,8 @@ function viewDiario() {
       const qtd = feitas.filter((y) => y.leitura.fim.startsWith(a)).length;
       html += `<h2 class="t-ano">${a}<small>${qtd} ${qtd === 1 ? 'leitura' : 'leituras'}</small></h2>`;
     }
-    if (m !== mesAtual) { mesAtual = m; html += `<div class="t-mes"><span>${MESES_LONGOS[+m - 1]}</span></div>`; }
+    const grupo = soAno(x) ? 'ano' : m;
+    if (grupo !== mesAtual) { mesAtual = grupo; html += `<div class="t-mes ${grupo === 'ano' ? 'sem-mes' : ''}"><span>${grupo === 'ano' ? `Em algum momento de ${a}` : MESES_LONGOS[+m - 1]}</span></div>`; }
     html += itemDiario(x, lado++);
   });
   if (!itens.length) html += `<p class="script" style="text-align:center">nenhuma leitura registrada ainda...</p>`;
@@ -441,8 +514,8 @@ function viewDiario() {
 }
 function itemDiario({ livro, leitura, n }, i) {
   const det = leitura.fim
-    ? `${fmtData(leitura.inicio)} → ${fmtData(leitura.fim)} · ${dias(leitura.inicio, leitura.fim)} dias`
-    : `desde ${fmtData(leitura.inicio)} · pág. ${leitura.paginaAtual || 0}${livro.paginas ? ` de ${livro.paginas}` : ''}`;
+    ? `${fmtPeriodo(leitura)}${duracao(leitura) ? ` · ${duracao(leitura)} dias` : ''}`
+    : `${fmtPeriodo(leitura)} · pág. ${leitura.paginaAtual || 0}${livro.paginas ? ` de ${livro.paginas}` : ''}`;
   return `<article class="t-item ${i % 2 ? 'dir' : ''}" data-action="abrir" data-id="${livro.id}" data-lid="${leitura.id}" tabindex="0">
     <div class="tilt">${capaHTML(livro)}</div>
     <div><h4>${esc(livro.titulo)}</h4><p>${esc(livro.autor)} · ${det}</p>
@@ -519,7 +592,7 @@ function paginaLeitura(l, x, ord) {
   };
   const temCrit = CRITERIOS.some(([k]) => x.criterios?.[k]);
   return `<div class="journal">
-    <div class="jrow"><span class="jlbl">período</span><span class="jval">${fmtData(x.inicio)} → ${x.fim ? fmtData(x.fim) : 'em andamento'}${x.fim && x.inicio ? ` <span class="muted">(${dias(x.inicio, x.fim)} dias)</span>` : ''}</span></div>
+    <div class="jrow"><span class="jlbl">período</span><span class="jval">${fmtPeriodo(x)}${duracao(x) ? ` <span class="muted">(${duracao(x)} dias)</span>` : ''}</span></div>
     <div class="jrow"><span class="jlbl">nota</span>${x.estrelas ? starsHTML(x.estrelas, { size: 'lg' }) : '<span class="muted">ainda sem nota</span>'}</div>
     ${temCrit ? `<div class="jrow"><span class="jlbl">critérios</span><div class="crit-grid">${CRITERIOS.map(([k, t]) => `
       <div class="crit"><span>${t.toLowerCase()} ${delta(k)}</span>${starsHTML(x.criterios?.[k] || 0, { variant: 'blue', size: 'sm' })}</div>`).join('')}</div></div>` : ''}
@@ -623,8 +696,8 @@ function abrirFormLivro(id = null) {
       <div id="bloco-lido" class="bloco-lido" hidden>
         <div class="nota-geral mesh grain"><span class="lbl">Que nota você dá?</span>${starsHTML(0, { input: true, name: 'nota-rapida', size: 'xl' })}</div>
         <div class="row">
-          <div class="field"><label for="f-inicio">Comecei em <span class="muted">(opcional)</span></label><input id="f-inicio" type="date" name="lidoInicio"></div>
-          <div class="field"><label for="f-fim">Terminei em</label><input id="f-fim" type="date" name="lidoFim" value="${hoje()}"></div>
+          ${campoData('lidoInicio', 'Comecei em', '', 'dia', { dica: '<span class="muted">(opcional)</span>' })}
+          ${campoData('lidoFim', 'Terminei em', hoje(), 'dia')}
         </div>
         <label class="check-crit"><input type="checkbox" name="detalhar"><span class="chave" aria-hidden="true"></span><span>Quero avaliar também os critérios, personagem e citação favorita</span></label>
         <div class="detalhes-lido" id="detalhes-lido" inert>
@@ -674,8 +747,10 @@ function salvarLivro(form) {
     toast(`“${l.titulo}” entrou na estante!`);
     salvar(); $('#modal-livro').close(); render();
     if (st === 'lido') {
-      const fim = form.lidoFim.value || hoje();
-      const inicio = form.lidoInicio.value && form.lidoInicio.value <= fim ? form.lidoInicio.value : fim;
+      const df = lerCampoData(form, 'lidoFim', 'fim'), di = lerCampoData(form, 'lidoInicio', 'inicio');
+      const fim = df.iso || hoje(), fimPrecisao = df.iso ? df.prec : 'dia';
+      const temInicio = di.iso && di.iso <= fim;
+      const inicio = temInicio ? di.iso : null, inicioPrecisao = temInicio ? di.prec : 'dia';
       const nota = +form.querySelector('.stars.input[data-name="nota-rapida"]').dataset.value || 0;
       const extra = {};
       if (form.detalhar.checked) {
@@ -686,7 +761,7 @@ function salvarLivro(form) {
         extra.notas = form.notas.value.trim();
         extra.recomenda = form.recomenda.value === '' ? null : form.recomenda.value === 'sim';
       }
-      const lt = novaLeitura({ inicio, fim, estrelas: nota, paginaAtual: +l.paginas || 0, ...extra });
+      const lt = novaLeitura({ inicio, fim, inicioPrecisao, fimPrecisao, estrelas: nota, paginaAtual: +l.paginas || 0, ...extra });
       l.leituras.push(lt); salvar(); render();
       if (nota) confete();
       abrirDetalhe(l.id, lt.id); return;
@@ -819,8 +894,8 @@ function abrirFormLeitura(livroId, leituraId, { concluir = false, passada = fals
     <div class="modal-head"><div><p class="script">${esc(l.titulo)}</p><h2>${titulo}</h2></div><button type="button" class="x" data-action="fechar" aria-label="Fechar">×</button></div>
     <div class="modal-body">
       <div class="row">
-        <div class="field"><label for="l-inicio">Comecei em</label><input id="l-inicio" type="date" name="inicio" value="${base.inicio || ''}"></div>
-        <div class="field"><label for="l-fim">Terminei em ${!concluir && !passada ? '<span class="muted">(vazio = lendo)</span>' : ''}</label><input id="l-fim" type="date" name="fim" value="${base.fim || ''}" ${concluir || passada ? 'required' : ''}></div>
+        ${campoData('inicio', 'Comecei em', base.inicio, base.inicioPrecisao || 'dia')}
+        ${campoData('fim', 'Terminei em', base.fim, base.fimPrecisao || 'dia', { dica: !concluir && !passada ? '<span class="muted">(vazio = lendo)</span>' : '', obrigatorio: concluir || passada })}
       </div>
       ${!concluir && !passada && !base.fim ? `<div class="field"><label for="l-pag">Página atual</label><input id="l-pag" type="number" min="0" name="paginaAtual" value="${base.paginaAtual || 0}"></div>` : ''}
       <div class="nota-geral mesh grain"><span class="lbl">Nota geral</span>${starsHTML(base.estrelas || 0, { input: true, name: 'estrelas', size: 'xl' })}</div>
@@ -842,13 +917,16 @@ function abrirFormLeitura(livroId, leituraId, { concluir = false, passada = fals
 function salvarLeitura(form) {
   const { livroId, leituraId, concluir } = ui.formLeitura;
   const l = acharLivro(livroId);
-  const inicio = form.inicio.value, fim = form.fim.value || null;
+  const di = lerCampoData(form, 'inicio', 'inicio'), df = lerCampoData(form, 'fim', 'fim');
+  const inicio = di.iso, fim = df.iso;
+  if ((ui.formLeitura.concluir || ui.formLeitura.passada) && !fim) { toast('Diga quando terminou (pode ser só o mês ou o ano).', 'erro'); return; }
   if (inicio && fim && fim < inicio) { toast('A data de término é antes do início.', 'erro'); return; }
   const crit = {};
   form.querySelectorAll('.stars.input').forEach((s) => { if (s.dataset.name !== 'estrelas') crit[s.dataset.name] = +s.dataset.value; });
   const rec = form.recomenda.value;
   const dados = {
-    inicio: inicio || fim || hoje(), fim,
+    inicio: inicio || (fim ? null : hoje()), fim,
+    inicioPrecisao: inicio ? di.prec : 'dia', fimPrecisao: fim ? df.prec : 'dia',
     estrelas: +form.querySelector('.stars.input[data-name="estrelas"]').dataset.value,
     criterios: crit, personagem: form.personagem.value.trim(), citacao: form.citacao.value.trim(), notas: form.notas.value.trim(),
     recomenda: rec === '' ? null : rec === 'sim',
@@ -950,6 +1028,7 @@ const acoes = {
   },
   'login-aba': (t) => Nuvem.trocarAba(t.dataset.aba),
   'login-virar': (t) => Nuvem.virar(t.dataset.aba),
+  prec: (t) => trocarPrecisao(t),
   'ver-senha': (t) => {
     const i = document.getElementById(t.dataset.alvo); if (!i) return;
     const mostrar = i.type === 'password';

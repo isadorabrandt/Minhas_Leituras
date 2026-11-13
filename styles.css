@@ -1332,3 +1332,27 @@ html:has(dialog[open]) { overflow: hidden; }
 .t-ano { width: fit-content; margin-left: auto; margin-right: auto; padding: 6px 28px 10px; background: var(--cream); z-index: 1; }
 .t-mes span { position: relative; z-index: 1; }
 @media (max-width: 760px) { .t-ano { padding: 4px 18px 8px; } }
+
+/* ============ Campo de data com precisão (dia · mês · ano) ============ */
+.campo-data-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.prec { display: inline-flex; padding: 2px; border: 2px solid var(--stroke); border-radius: 999px; background: var(--paper); }
+.prec button {
+  border: 0; background: none; padding: 3px 10px; border-radius: 999px; font-size: .68rem; font-weight: 800;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--muted); transition: background .2s, color .2s;
+}
+.prec button:hover { color: var(--ink); }
+.prec button[aria-pressed="true"] { background: var(--pink); color: #3d0a1f; }
+.campo-data .cd-mes { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+.campo-data select {
+  padding: 10px 12px; border-radius: 12px; border: 2px solid var(--stroke); background: var(--cream); width: 100%; min-width: 0;
+  min-height: 46px; font-weight: 600;
+}
+.campo-data .cd-mes, .campo-data .cd-ano, .campo-data .cd-dia { display: none; }
+.campo-data[data-prec="dia"] .cd-dia { display: block; }
+.campo-data[data-prec="mes"] .cd-mes { display: grid; }
+.campo-data[data-prec="ano"] .cd-ano { display: block; }
+.campo-data .cd-dia, .campo-data select { animation: entrar .3s; }
+
+/* diário: grupo "em algum momento do ano" */
+.t-mes.sem-mes span { background: var(--lilac); color: #3d0a1f; }
+.sem-mes-nota { text-align: center; margin: 14px 0 0; font-size: 1.05rem; }

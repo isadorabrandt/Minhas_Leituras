@@ -42,11 +42,17 @@ create table if not exists public.leituras (
   citacao      text,
   notas        text,
   recomenda    boolean,
+  inicio_precisao text not null default 'dia' check (inicio_precisao in ('dia', 'mes', 'ano')),
+  fim_precisao    text not null default 'dia' check (fim_precisao in ('dia', 'mes', 'ano')),
   atualizado_em timestamptz not null default now(),
   primary key (user_id, id),
   foreign key (user_id, livro_id) references public.livros (user_id, id) on delete cascade,
   check (fim is null or inicio is null or fim >= inicio)
 );
+
+-- (para bancos criados antes) datas só com mês ou só com ano
+alter table public.leituras add column if not exists inicio_precisao text not null default 'dia' check (inicio_precisao in ('dia', 'mes', 'ano'));
+alter table public.leituras add column if not exists fim_precisao    text not null default 'dia' check (fim_precisao in ('dia', 'mes', 'ano'));
 
 create index if not exists leituras_livro_idx on public.leituras (user_id, livro_id);
 create index if not exists leituras_fim_idx on public.leituras (user_id, fim);

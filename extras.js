@@ -70,15 +70,22 @@ const Importador = (() => {
     }
     return m;
   }
-  function data(v) {
-    v = String(v || '').trim(); if (!v) return null;
+  /* devolve { iso, prec } — aceita 2024/12/20, 20/12/2024, 2024-12, 12/2024, "dez 2024" e 2024 */
+  const MES_NOME = { jan: 1, fev: 2, feb: 2, mar: 3, abr: 4, apr: 4, mai: 5, may: 5, jun: 6, jul: 7, ago: 8, aug: 8, set: 9, sep: 9, out: 10, oct: 10, nov: 11, dez: 12, dec: 12 };
+  function data(v, papel = 'fim') {
+    v = String(v || '').trim(); if (!v) return { iso: null, prec: 'dia' };
     let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(v);
-    if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    if (m) return { iso: `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`, prec: 'dia' };
     m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/.exec(v);
-    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-    m = /^(\d{4})$/.exec(v); if (m) return `${m[1]}-12-31`;
-    return null;
+    if (m) return { iso: `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`, prec: 'dia' };
+    m = /^(\d{4})[-/.](\d{1,2})$/.exec(v) || /^(\d{1,2})[-/.](\d{4})$/.exec(v)?.reverse().slice(0, 3).reverse();
+    if (m) { const ano = +(m[1].length === 4 ? m[1] : m[2]), mes = +(m[1].length === 4 ? m[2] : m[1]); if (mes >= 1 && mes <= 12) return { iso: montarData(ano, mes, 0, 'mes', papel), prec: 'mes' }; }
+    m = /^([a-zç]{3})[a-zç]*\.?\s*(de\s*)?(\d{4})$/i.exec(semAcento(v));
+    if (m && MES_NOME[m[1]]) return { iso: montarData(+m[3], MES_NOME[m[1]], 0, 'mes', papel), prec: 'mes' };
+    m = /^(\d{4})$/.exec(v); if (m) return { iso: montarData(+m[1], 0, 0, 'ano', papel), prec: 'ano' };
+    return { iso: null, prec: 'dia' };
   }
+
   function status(v, temFim, temNota) {
     const s = norm(v);
     if (!s) return temFim || temNota ? 'lido' : 'quero';
@@ -105,14 +112,15 @@ const Importador = (() => {
       const notaTxt = pega(row, 'nota').replace(',', '.');
       let nota = parseFloat(notaTxt); nota = isFinite(nota) ? Math.max(0, Math.min(5, nota > 5 ? nota / 2 : nota)) : 0;
       nota = Math.round(nota * 2) / 2;
-      const fim = data(pega(row, 'fim')), inicio = data(pega(row, 'inicio'));
+      const df = data(pega(row, 'fim'), 'fim'), di = data(pega(row, 'inicio'), 'inicio');
+      const fim = df.iso, inicio = di.iso;
       const st = status(pega(row, 'status'), !!fim, nota > 0);
       const isbn = limparIsbn(pega(row, 'isbn'));
       const k = chaveLivro({ titulo, autor });
       const dup = existentes.has(k) || vistos.has(k); vistos.add(k);
       return {
-        titulo, autor, paginas: parseInt(pega(row, 'paginas'), 10) || '', nota, fim, inicio, status: st, isbn,
-        adicionado: data(pega(row, 'adicionado')), resenha: pega(row, 'resenha'), citacao: pega(row, 'citacao'),
+        titulo, autor, paginas: parseInt(pega(row, 'paginas'), 10) || '', nota, fim, inicio, fimPrec: df.prec, inicioPrec: di.prec, status: st, isbn,
+        adicionado: data(pega(row, 'adicionado')).iso, resenha: pega(row, 'resenha'), citacao: pega(row, 'citacao'),
         genero: generoDe(pega(row, 'genero').split(/[,;|]/).filter(Boolean)), duplicado: dup,
       };
     }).filter(Boolean);
@@ -135,6 +143,7 @@ const Importador = (() => {
           <summary>Como tirar a planilha do Goodreads ou do Skoob?</summary>
           <p><b>Goodreads:</b> no site, vá em <i>My Books → Import and export → Export Library</i> e baixe o arquivo .csv.</p>
           <p><b>Skoob:</b> o Skoob não tem botão de exportar. Dá para usar uma ferramenta da comunidade (como o <i>skoobpy</i>) ou montar a planilha no Google Planilhas com as colunas <i>Título, Autor, Páginas, Status, Nota, Data de leitura</i> e baixar como .csv.</p>
+          <p><b>Datas:</b> pode ser completa (20/12/2024), só mês e ano (12/2024 ou dez 2024) ou só o ano (2024).</p>
           <p><b>Status aceitos:</b> lido, lendo, quero ler, relendo, abandonei — ou read, currently-reading, to-read.</p>
         </details>
         <div id="previa"></div>
@@ -170,7 +179,7 @@ const Importador = (() => {
       <div class="previa-lista">${novos.slice(0, 60).map((x) => `<div class="previa-item">
           <div class="previa-capa">${capaHTML({ titulo: x.titulo, autor: x.autor, capa: x.isbn ? `https://covers.openlibrary.org/b/isbn/${x.isbn}-M.jpg?default=false` : '' })}</div>
           <div><b>${esc(x.titulo)}</b><small>${esc(x.autor || 'autor desconhecido')}</small>
-            <span class="previa-meta"><span class="pill ${x.status === 'abandonado' ? 'lido' : x.status}">${{ lido: 'Lido', lendo: 'Lendo', quero: 'Quero ler', abandonado: 'Abandonado' }[x.status]}</span>${x.nota ? starsHTML(x.nota, { size: 'sm' }) : ''}${x.fim ? `<span class="muted">${fmtData(x.fim)}</span>` : ''}</span></div>
+            <span class="previa-meta"><span class="pill ${x.status === 'abandonado' ? 'lido' : x.status}">${{ lido: 'Lido', lendo: 'Lendo', quero: 'Quero ler', abandonado: 'Abandonado' }[x.status]}</span>${x.nota ? starsHTML(x.nota, { size: 'sm' }) : ''}${x.fim ? `<span class="muted">${fmtData(x.fim, x.fimPrec)}</span>` : ''}</span></div>
         </div>`).join('')}${novos.length > 60 ? `<p class="muted" style="text-align:center">… e mais ${novos.length - 60}</p>` : ''}</div>`;
     const b = $('#btn-importar');
     b.disabled = !novos.length;
@@ -189,13 +198,14 @@ const Importador = (() => {
       };
       if (x.status === 'lido' || x.status === 'abandonado') {
         const fim = x.fim || x.adicionado || hoje();
-        const inicio = x.inicio && x.inicio <= fim ? x.inicio : fim;
+        const fimPrecisao = x.fim ? x.fimPrec : 'dia';
+        const temInicio = x.inicio && x.inicio <= fim;
         l.leituras.push(novaLeitura({
-          inicio, fim, estrelas: x.nota, paginaAtual: +x.paginas || 0, citacao: x.citacao,
+          inicio: temInicio ? x.inicio : null, inicioPrecisao: temInicio ? x.inicioPrec : 'dia', fim, fimPrecisao, estrelas: x.nota, paginaAtual: +x.paginas || 0, citacao: x.citacao,
           notas: [x.status === 'abandonado' ? 'Abandonei esta leitura.' : '', x.resenha].filter(Boolean).join('\n\n'),
         }));
       } else if (x.status === 'lendo') {
-        l.leituras.push(novaLeitura({ inicio: x.inicio || hoje() }));
+        l.leituras.push(novaLeitura({ inicio: x.inicio || hoje(), inicioPrecisao: x.inicio ? x.inicioPrec : 'dia' }));
       }
       db.livros.push(l);
     });
