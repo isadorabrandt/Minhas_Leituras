@@ -1375,3 +1375,9 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .fechar-busca:hover { transform: rotate(-4deg) scale(1.06); }
 .resultados .fechar-busca { text-align: center; padding: 4px 12px; font-size: .72rem; background: var(--pink); }
+
+/* estante: filtro de ano em destaque quando ativo */
+.toolbar select.filtro-ativo { background: var(--olive); color: var(--olive-ink); }
+/* marcador lateral: só aparece depois de passar do topo, e mais junto da borda */
+.scroll-fx #fita-scroll { right: 8px; transition: opacity .4s; }
+.scroll-fx #fita-scroll.mostrar { opacity: var(--vis, 0); }

@@ -15,6 +15,7 @@ const Nuvem = (() => {
 
   let usuario = null;
   let foto = { livros: new Map(), leituras: new Map(), perfil: '' };
+  const paraReenviar = new Set();
   let semPrecisao = false; // vira true se o banco ainda não tiver as colunas novas
   let timer = null, sincronizando = false, pendente = false;
   let abaLogin = 'entrar';
@@ -29,7 +30,9 @@ const Nuvem = (() => {
   });
   const linhaLeitura = (l, x) => ({
     user_id: usuario.id, id: x.id, livro_id: l.id, inicio: x.inicio || null, fim: x.fim || null,
-    pagina_atual: +x.paginaAtual || 0, estrelas: +x.estrelas || 0, criterios: x.criterios || {},
+    pagina_atual: +x.paginaAtual || 0, estrelas: +x.estrelas || 0,
+    // a precisão das datas também vai junto dos critérios: assim funciona mesmo em bancos sem as colunas novas
+    criterios: { ...(x.criterios || {}), _datas: { inicio: x.inicioPrecisao || 'dia', fim: x.fimPrecisao || 'dia' } },
     personagem: x.personagem || null, citacao: x.citacao || null, notas: x.notas || null,
     recomenda: x.recomenda ?? null,
     ...(semPrecisao ? {} : { inicio_precisao: x.inicioPrecisao || 'dia', fim_precisao: x.fimPrecisao || 'dia' }),
@@ -41,11 +44,21 @@ const Nuvem = (() => {
     id: r.id, titulo: r.titulo, autor: r.autor || '', genero: r.genero || '', paginas: r.paginas ?? '',
     capa: r.capa || '', cor: r.cor || '', criadoEm: r.criado_em, leituras: [],
   });
-  const paraLeitura = (r) => ({
-    id: r.id, inicio: r.inicio, fim: r.fim, paginaAtual: r.pagina_atual || 0, estrelas: +r.estrelas || 0,
-    criterios: r.criterios || {}, personagem: r.personagem || '', citacao: r.citacao || '', notas: r.notas || '',
-    recomenda: r.recomenda, inicioPrecisao: r.inicio_precisao || 'dia', fimPrecisao: r.fim_precisao || 'dia',
-  });
+  const paraLeitura = (r) => {
+    const { _datas, ...criterios } = r.criterios || {};
+    if (!_datas) paraReenviar.add(r.id); // grava a precisão no novo formato na próxima sincronização
+    let pi = r.inicio_precisao && r.inicio_precisao !== 'dia' ? r.inicio_precisao : _datas?.inicio || r.inicio_precisao || null;
+    let pf = r.fim_precisao && r.fim_precisao !== 'dia' ? r.fim_precisao : _datas?.fim || r.fim_precisao || null;
+    // leituras salvas antes, sem nenhuma informação de precisão: "31/12 sem início" (ou 01/01 → 31/12) era "só o ano"
+    if ((!pf || (pf === 'dia' && !_datas)) && r.fim && /-12-31$/.test(r.fim) && (!r.inicio || r.inicio === r.fim || r.inicio === `${r.fim.slice(0, 4)}-01-01`)) {
+      pf = 'ano'; if (r.inicio === r.fim) { r = { ...r, inicio: null }; pi = 'dia'; } else if (r.inicio) pi = 'ano';
+    }
+    return {
+      id: r.id, inicio: r.inicio, fim: r.fim, paginaAtual: r.pagina_atual || 0, estrelas: +r.estrelas || 0,
+      criterios, personagem: r.personagem || '', citacao: r.citacao || '', notas: r.notas || '',
+      recomenda: r.recomenda, inicioPrecisao: pi || 'dia', fimPrecisao: pf || 'dia',
+    };
+  };
 
   function estadoAtual() {
     const livros = new Map(), leituras = new Map();
@@ -90,7 +103,6 @@ const Nuvem = (() => {
             semPrecisao = true;
             const sem = upLeituras.map(({ inicio_precisao, fim_precisao, ...r }) => r);
             await emLotes(sem, (rows) => sb.from('leituras').upsert(rows, { onConflict: 'user_id,id' }));
-            toast('Para guardar datas só com mês ou ano, rode a atualização do banco (veja o README).', 'erro');
           } else throw e;
         }
       }
@@ -121,6 +133,7 @@ const Nuvem = (() => {
     (lt.data || []).forEach((r) => porId.get(r.livro_id)?.leituras.push(paraLeitura(r)));
     db = { livros, metas: pf.data?.metas || {}, tema: pf.data?.tema || db.tema || null };
     foto = estadoAtual();
+    if (paraReenviar.size) { paraReenviar.forEach((id) => foto.leituras.delete(id)); paraReenviar.clear(); setTimeout(agendar, 1500); }
     if (!pf.data) foto.perfil = ''; // cria o perfil no próximo salvamento
     status('salvo');
   }

@@ -173,7 +173,7 @@ const ScrollFX = (() => {
     const max = document.documentElement.scrollHeight - vh;
     const lido = max > 0 ? clamp(y / max) : 0;
     const f = document.getElementById('fita-scroll');
-    if (f) { f.style.setProperty('--lido', lido.toFixed(4)); f.querySelector('b').textContent = `${Math.round(lido * 100)}%`; }
+    if (f) { f.style.setProperty('--vis', y > vh * 0.6 ? 1 : 0); f.style.setProperty('--lido', lido.toFixed(4)); f.querySelector('b').textContent = `${Math.round(lido * 100)}%`; }
   }
 
   function contar(b) {

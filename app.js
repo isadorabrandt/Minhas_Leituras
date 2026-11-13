@@ -33,7 +33,7 @@ let db = window.ML_CONFIG?.supabaseUrl ? { livros: [], metas: {}, tema: lerTemaL
 const ui = {
   view: 'inicio', filtro: 'todos', busca: '', ordem: 'recentes', modo: 'lombadas',
   ano: new Date().getFullYear(), aberto: null, aba: null,
-  formLivro: null, formLeitura: null, resultados: [],
+  formLivro: null, formLeitura: null, resultados: [], online: null, anoEstante: '',
 };
 
 /* ---------------- Persistência ---------------- */
@@ -307,7 +307,7 @@ function viewInicio() {
   </section>
 
   ${lendo.length ? `<section class="secao wrap">
-    <div class="balao"><h2>Você está na ${lendo.map((l) => `página <span class="squiggle">${+leituraAtual(l).paginaAtual || 0}</span> de ${esc(l.titulo)}`).join(' &amp; na ')}.</h2>
+    <div class="balao"><h2>${lendo.length <= 2 ? `Você está na ${lendo.map((l) => `página <span class="squiggle">${+leituraAtual(l).paginaAtual || 0}</span> de ${esc(l.titulo)}`).join(' &amp; na ')}.` : `Você está com <span class="squiggle">${lendo.length} livros</span> abertos ao mesmo tempo — e já leu <span class="squiggle">${lendo.reduce((s, l) => s + (+leituraAtual(l).paginaAtual || 0), 0)}</span> páginas deles.`}</h2>
       <p class="script">atualize aqui embaixo, sem cerimônia ↓</p></div>
     <div class="cards3" id="fx-lendo">${lendo.map(cardLendo).join('')}</div>
   </section>` : ''}
@@ -406,6 +406,12 @@ function viewEstante() {
       <div class="chips">${chip('todos', 'Todos')}${chip('lendo', 'Lendo')}${chip('quero', 'Quero ler')}${chip('lido', 'Lidos')}${chip('reler', 'Releituras')}</div>
       <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <span class="sr">Buscar</span><input id="busca-estante" type="search" placeholder="Buscar título, autor ou gênero" value="${esc(ui.busca)}"></label>
+      <select data-change="ano-estante" aria-label="Filtrar por ano de leitura" class="${ui.anoEstante ? 'filtro-ativo' : ''}">
+        <option value="">Todos os anos</option>
+        ${[...new Set(db.livros.flatMap((l) => concluidas(l).map((x) => x.fim.slice(0, 4))))].sort().reverse()
+          .map((y) => `<option value="${y}" ${ui.anoEstante === y ? 'selected' : ''}>Lidos em ${y}</option>`).join('')}
+        <option value="nunca" ${ui.anoEstante === 'nunca' ? 'selected' : ''}>Ainda não lidos</option>
+      </select>
       <select data-change="ordem" aria-label="Ordenar">
         ${[['recentes', 'Recentes'], ['titulo', 'Título (A–Z)'], ['autor', 'Autor (A–Z)'], ['nota', 'Melhor avaliados'], ['paginas', 'Mais páginas']]
           .map(([v, t]) => `<option value="${v}" ${ui.ordem === v ? 'selected' : ''}>${t}</option>`).join('')}
@@ -420,11 +426,13 @@ function viewEstante() {
 }
 
 function filtrarLivros() {
-  const q = ui.busca.trim().toLowerCase();
+  const q = String(ui.busca || '').trim().toLowerCase();
   const ls = db.livros.filter((l) => {
     if (ui.filtro === 'reler') { if (!(concluidas(l).length > 1 || (leituraAtual(l) && l.leituras.length > 1))) return false; }
     else if (ui.filtro !== 'todos' && status(l) !== ui.filtro) return false;
-    return !q || `${l.titulo} ${l.autor} ${l.genero}`.toLowerCase().includes(q);
+    if (ui.anoEstante === 'nunca' && concluidas(l).length) return false;
+    if (ui.anoEstante && ui.anoEstante !== 'nunca' && !concluidas(l).some((x) => x.fim.startsWith(ui.anoEstante))) return false;
+    return !q || semAcento(`${l.titulo} ${l.autor} ${l.genero}`).includes(semAcento(q));
   });
   const cmp = {
     recentes: (a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''),
@@ -847,15 +855,15 @@ async function buscarOnline(mais = false) {
   const box = $('#resultados'); if (!box) return;
   if (!mais) {
     const q = $('#q-online').value.trim(); if (!q) return;
-    ui.busca = { q, pagina: 0, temMais: true, token: Symbol() };
+    ui.online = { q, pagina: 0, temMais: true, token: Symbol() };
     ui.resultados = [];
     box.innerHTML = '<span class="loading"></span>';
   } else {
-    if (!ui.busca?.temMais) return;
-    ui.busca.pagina++;
+    if (!ui.online?.temMais) return;
+    ui.online.pagina++;
     $('#mais-resultados')?.replaceWith(Object.assign(document.createElement('span'), { className: 'loading', id: 'carregando-mais' }));
   }
-  const { q, pagina, token } = ui.busca;
+  const { q, pagina, token } = ui.online;
   const enc = encodeURIComponent(q), inicio = pagina * POR_PAGINA;
   const G = 'https://www.googleapis.com/books/v1/volumes';
   const OL = 'https://openlibrary.org/search.json';
@@ -867,7 +875,7 @@ async function buscarOnline(mais = false) {
     comTempo(`${OL}?title=${enc}&limit=${POR_PAGINA}&page=${pagina + 1}&${camposOL}`),
     comTempo(`${OL}?q=${enc}&limit=${POR_PAGINA}&page=${pagina + 1}&${camposOL}`),
   ]);
-  if (ui.busca?.token !== token) return; // a pessoa já buscou outra coisa
+  if (ui.online?.token !== token) return; // a pessoa já buscou outra coisa
   const [gPt, gTit, gGeral, olTit, olGeral] = fontes;
   const lista = [];
   const deGoogle = (f, pt) => { if (f.status === 'fulfilled') (f.value.items || []).forEach((it) => lista.push({ ...doGoogle(it.volumeInfo), pt: pt || it.volumeInfo?.language === 'pt' })); };
@@ -888,18 +896,18 @@ async function buscarOnline(mais = false) {
   ui.resultados = (bons.length ? bons : parecidos).sort((x, y) => y.nota - x.nota);
 
   const cheia = (f, campo) => f.status === 'fulfilled' && (f.value[campo] || []).length >= POR_PAGINA;
-  ui.busca.temMais = fontes.some((f, i) => cheia(f, i < 3 ? 'items' : 'docs')) && pagina < 9;
+  ui.online.temMais = fontes.some((f, i) => cheia(f, i < 3 ? 'items' : 'docs')) && pagina < 9;
   const fechar = '<button type="button" class="fechar-busca" data-action="fechar-busca" aria-label="Fechar resultados da busca">× fechar</button>';
   if (!ui.resultados.length) {
     const falhou = fontes.every((f) => f.status === 'rejected');
     box.innerHTML = `<div class="resultados-topo"><p class="resultados-info">${falhou ? 'Não consegui falar com as bibliotecas online agora. Tente de novo em instantes.' : 'Não encontrei esse livro. Tente outro termo ou preencha à mão logo abaixo.'}</p>${fechar}</div>`;
     return;
   }
-  box.innerHTML = `<div class="resultados-topo"><p class="resultados-info">${ui.resultados.length} ${ui.resultados.length === 1 ? 'livro encontrado' : 'livros encontrados'}${ui.busca.temMais ? '' : ' — fim da lista'}</p>${fechar}</div>`
+  box.innerHTML = `<div class="resultados-topo"><p class="resultados-info">${ui.resultados.length} ${ui.resultados.length === 1 ? 'livro encontrado' : 'livros encontrados'}${ui.online.temMais ? '' : ' — fim da lista'}</p>${fechar}</div>`
     + ui.resultados.map((r, i) => `<button type="button" data-action="escolher-resultado" data-i="${i}">
     ${r.capa ? `<img src="${esc(r.capa)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="sem-capa" style="background:${PALETA[i % PALETA.length]}"></div>`}
     <b>${esc(r.titulo).slice(0, 60)}</b><br><span class="muted">${esc(r.autor).slice(0, 40)}${r.ano ? ` · ${esc(r.ano)}` : ''}</span>${r.genero ? `<br><span class="pill" style="margin-top:4px">${esc(r.genero)}</span>` : ''}</button>`).join('')
-    + (ui.busca.temMais ? '<button type="button" class="btn small mais-resultados" id="mais-resultados" data-action="mais-resultados">Ver mais livros</button>' : '');
+    + (ui.online.temMais ? '<button type="button" class="btn small mais-resultados" id="mais-resultados" data-action="mais-resultados">Ver mais livros</button>' : '');
 }
 function escolherResultado(i) {
   const r = ui.resultados[i]; const f = $('#form-livro'); if (!r || !f) return;
@@ -907,7 +915,7 @@ function escolherResultado(i) {
   if (r.autor) f.autor.value = r.autor;
   if (r.paginas) f.paginas.value = r.paginas;
   if (r.genero) f.genero.value = r.genero;
-  $('#resultados').innerHTML = ''; ui.busca = null;
+  $('#resultados').innerHTML = ''; ui.online = null;
   if (r.capa) definirCapa(r.capa, true); else atualizarPreviewCapa();
 }
 
@@ -1042,7 +1050,7 @@ const acoes = {
   'buscar-online': () => buscarOnline(),
   'escolher-resultado': (t) => escolherResultado(+t.dataset.i),
   'mais-resultados': () => buscarOnline(true),
-  'fechar-busca': () => { ui.busca = null; ui.resultados = []; const b = $('#resultados'); if (b) b.innerHTML = ''; $('#f-titulo')?.focus({ preventScroll: true }); },
+  'fechar-busca': () => { ui.online = null; ui.resultados = []; const b = $('#resultados'); if (b) b.innerHTML = ''; $('#f-titulo')?.focus({ preventScroll: true }); },
   'capa-url': () => { const u = prompt('Cole o link (URL) da imagem da capa:'); if (u) definirCapa(u.trim(), true); },
   'remover-capa': () => { ui.formLivro.capa = ''; ui.formLivro.cor = ''; atualizarPreviewCapa(); },
   tema: () => {
@@ -1108,6 +1116,7 @@ document.addEventListener('change', (e) => {
   if (k === 'meta') { db.metas[ui.ano] = Math.max(1, +t.value || 1); salvar(); render(); }
   if (k === 'ano') { ui.ano = +t.value; render(); }
   if (k === 'ordem') { ui.ordem = t.value; renderLista(); }
+  if (k === 'ano-estante') { ui.anoEstante = t.value; t.classList.toggle('filtro-ativo', !!t.value); renderLista(); }
   if (t.id === 'capa-arquivo' && t.files[0]) {
     const r = new FileReader(); r.onload = () => definirCapa(r.result, false); r.readAsDataURL(t.files[0]);
   }
