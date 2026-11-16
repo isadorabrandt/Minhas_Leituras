@@ -17,6 +17,9 @@ const Nuvem = (() => {
   let foto = { livros: new Map(), leituras: new Map(), perfil: '' };
   const paraReenviar = new Set();
   let semPrecisao = false; // vira true se o banco ainda não tiver as colunas novas
+  let semSerie = false;     // idem para as colunas de série (aí a série vai no perfil)
+  let storageOff = false;   // bucket "midia" ainda não criado: capas/fotos ficam no banco como antes
+  const BUCKET = 'midia';
   let timer = null, sincronizando = false, pendente = false;
   let abaLogin = 'entrar';
   const veioDoLinkDeSenha = location.hash.includes('type=recovery');
@@ -27,25 +30,35 @@ const Nuvem = (() => {
     user_id: usuario.id, id: l.id, titulo: l.titulo, autor: l.autor || null, genero: l.genero || null,
     paginas: l.paginas ? +l.paginas : null, capa: l.capa || null, cor: l.cor || null,
     criado_em: l.criadoEm || new Date().toISOString(),
+    ...(semSerie ? {} : { serie: l.serie || null, serie_volume: l.serie && l.serieVol !== '' && l.serieVol != null ? +l.serieVol : null }),
   });
   const linhaLeitura = (l, x) => ({
     user_id: usuario.id, id: x.id, livro_id: l.id, inicio: x.inicio || null, fim: x.fim || null,
     pagina_atual: +x.paginaAtual || 0, estrelas: +x.estrelas || 0,
     // a precisão das datas também vai junto dos critérios: assim funciona mesmo em bancos sem as colunas novas
-    criterios: { ...(x.criterios || {}), _datas: { inicio: x.inicioPrecisao || 'dia', fim: x.fimPrecisao || 'dia' } },
+    criterios: {
+      ...(x.criterios || {}), _datas: { inicio: x.inicioPrecisao || 'dia', fim: x.fimPrecisao || 'dia' },
+      ...(x.log?.length ? { _log: x.log } : {}), ...(x.fotos?.length ? { _fotos: x.fotos } : {}),
+    },
     personagem: x.personagem || null, citacao: x.citacao || null, notas: x.notas || null,
     recomenda: x.recomenda ?? null,
     ...(semPrecisao ? {} : { inicio_precisao: x.inicioPrecisao || 'dia', fim_precisao: x.fimPrecisao || 'dia' }),
   });
-  const linhaPerfil = () => ({
-    user_id: usuario.id, nome: nome() || null, metas: db.metas || {}, tema: db.tema || null,
-  });
+  const linhaPerfil = () => {
+    const metas = { ...(db.metas || {}) };
+    if (semSerie) { // banco sem colunas de série: guarda no perfil para não perder
+      const m = {}; db.livros.forEach((l) => { if (l.serie) m[l.id] = [l.serie, l.serieVol ?? '']; });
+      if (Object.keys(m).length) metas._series = m;
+    }
+    return { user_id: usuario.id, nome: nome() || null, metas, tema: db.tema || null };
+  };
   const paraLivro = (r) => ({
     id: r.id, titulo: r.titulo, autor: r.autor || '', genero: r.genero || '', paginas: r.paginas ?? '',
     capa: r.capa || '', cor: r.cor || '', criadoEm: r.criado_em, leituras: [],
+    serie: r.serie || '', serieVol: r.serie_volume ?? '',
   });
   const paraLeitura = (r) => {
-    const { _datas, ...criterios } = r.criterios || {};
+    const { _datas, _log, _fotos, ...criterios } = r.criterios || {};
     if (!_datas) paraReenviar.add(r.id); // grava a precisão no novo formato na próxima sincronização
     let pi = r.inicio_precisao && r.inicio_precisao !== 'dia' ? r.inicio_precisao : _datas?.inicio || r.inicio_precisao || null;
     let pf = r.fim_precisao && r.fim_precisao !== 'dia' ? r.fim_precisao : _datas?.fim || r.fim_precisao || null;
@@ -57,6 +70,7 @@ const Nuvem = (() => {
       id: r.id, inicio: r.inicio, fim: r.fim, paginaAtual: r.pagina_atual || 0, estrelas: +r.estrelas || 0,
       criterios, personagem: r.personagem || '', citacao: r.citacao || '', notas: r.notas || '',
       recomenda: r.recomenda, inicioPrecisao: pi || 'dia', fimPrecisao: pf || 'dia',
+      log: Array.isArray(_log) ? _log : [], fotos: Array.isArray(_fotos) ? _fotos : [],
     };
   };
 
@@ -83,6 +97,7 @@ const Nuvem = (() => {
     if (!usuario) return;
     if (sincronizando) { pendente = true; return; }
     sincronizando = true;
+    await subirPendentes();
     const agora = estadoAtual();
     try {
       const mudou = (atual, antes) => [...atual].filter(([id, j]) => antes.get(id) !== j).map(([, j]) => JSON.parse(j));
@@ -94,7 +109,18 @@ const Nuvem = (() => {
 
       if (delLeituras.length) await emLotes(delLeituras, (ids) => sb.from('leituras').delete().in('id', ids), 100);
       if (delLivros.length) await emLotes(delLivros, (ids) => sb.from('livros').delete().in('id', ids), 100);
-      if (upLivros.length) await emLotes(upLivros, (rows) => sb.from('livros').upsert(rows, { onConflict: 'user_id,id' }));
+      if (upLivros.length) {
+        try { await emLotes(upLivros, (rows) => sb.from('livros').upsert(rows, { onConflict: 'user_id,id' })); }
+        catch (e) {
+          if (!semSerie && /serie/i.test(e?.message || '')) {
+            semSerie = true;
+            agora.perfil = JSON.stringify(linhaPerfil());
+            const sem = upLivros.map(({ serie, serie_volume, ...r }) => r);
+            await emLotes(sem, (rows) => sb.from('livros').upsert(rows, { onConflict: 'user_id,id' }));
+            avisarSql();
+          } else throw e;
+        }
+      }
       if (upLeituras.length) {
         try { await emLotes(upLeituras, (rows) => sb.from('leituras').upsert(rows, { onConflict: 'user_id,id' })); }
         catch (e) {
@@ -131,10 +157,17 @@ const Nuvem = (() => {
     const porId = new Map();
     const livros = (lv.data || []).map((r) => { const l = paraLivro(r); porId.set(l.id, l); return l; });
     (lt.data || []).forEach((r) => porId.get(r.livro_id)?.leituras.push(paraLeitura(r)));
-    db = { livros, metas: pf.data?.metas || {}, tema: pf.data?.tema || db.tema || null };
+    const { _series, ...metas } = pf.data?.metas || {};
+    if (_series) { // séries guardadas no perfil (banco ainda sem as colunas)
+      livros.forEach((l) => { if (!l.serie && _series[l.id]) [l.serie, l.serieVol] = _series[l.id]; });
+      if (!(lv.data || []).some((r) => 'serie' in r)) semSerie = true;
+    }
+    db = { livros, metas, tema: pf.data?.tema || db.tema || null };
     foto = estadoAtual();
     if (paraReenviar.size) { paraReenviar.forEach((id) => foto.leituras.delete(id)); paraReenviar.clear(); setTimeout(agendar, 1500); }
     if (!pf.data) foto.perfil = ''; // cria o perfil no próximo salvamento
+    // capas/fotos antigas guardadas dentro do banco: sobem para o Storage em segundo plano
+    if (livros.some((l) => l.capa?.startsWith('data:') || l.leituras.some((x) => x.fotos?.some((f) => f.startsWith('data:'))))) setTimeout(agendar, 2500);
     status('salvo');
   }
 
@@ -361,8 +394,50 @@ const Nuvem = (() => {
     return true;
   }
 
+  /* ---------- Storage: capas e fotos fora do banco ---------- */
+  let avisou = false;
+  function avisarSql() {
+    if (avisou) return; avisou = true;
+    toast('Para guardar capas, fotos e séries do jeito novo, rode o arquivo supabase/2026-11-storage-series.sql no Supabase.', 'erro');
+  }
+  function dataUrlParaBlob(u) {
+    const [cab, b64] = u.split(','); const tipo = /data:([^;]+)/.exec(cab)?.[1] || 'image/jpeg';
+    const bin = atob(b64); const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: tipo });
+  }
+  async function subirImagem(dataUrl, pasta) {
+    if (!usuario || storageOff || !dataUrl?.startsWith('data:')) return null;
+    const caminho = `${usuario.id}/${pasta}/${uid()}.jpg`;
+    const { error } = await sb.storage.from(BUCKET).upload(caminho, dataUrlParaBlob(dataUrl), { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+    if (error) { console.warn('Storage', error); storageOff = true; avisarSql(); return null; }
+    return sb.storage.from(BUCKET).getPublicUrl(caminho).data.publicUrl;
+  }
+  /* troca toda imagem "data:" (capas e fotos) por um link do Storage */
+  async function subirPendentes() {
+    if (!usuario || storageOff) return;
+    for (const l of db.livros) {
+      if (storageOff) return;
+      if (l.capa?.startsWith('data:')) { const u = await subirImagem(l.capa, 'capas'); if (u) l.capa = u; }
+      for (const x of l.leituras) {
+        if (!x.fotos?.some((f) => f.startsWith('data:'))) continue;
+        for (let i = 0; i < x.fotos.length; i++) {
+          if (!x.fotos[i].startsWith('data:')) continue;
+          const u = await subirImagem(x.fotos[i], `mood/${x.id}`); if (!u) return;
+          x.fotos[i] = u;
+        }
+      }
+    }
+  }
+  function removerImagem(url) {
+    if (!usuario || !url) return;
+    const m = new RegExp(`/storage/v1/object/public/${BUCKET}/(.+)$`).exec(url);
+    if (m) sb.storage.from(BUCKET).remove([decodeURIComponent(m[1])]).catch(() => {});
+  }
+
   return {
     get ativo() { return pronto; },
+    removerImagem,
     get logado() { return !!usuario; },
     nome, iniciar, agendar, sair, telaLogin, enviarLogin,
     trocarAba(a) { abaLogin = a; telaLogin(); },

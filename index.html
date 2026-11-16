@@ -30,6 +30,7 @@
       <button data-action="nav" data-view="inicio">Início</button>
       <button data-action="nav" data-view="estante">Estante</button>
       <button data-action="nav" data-view="diario">Diário</button>
+      <button data-action="nav" data-view="calendario">Calendário</button>
     </nav>
     <div class="top-actions">
       <span id="sync" class="sync" hidden></span>
@@ -61,6 +62,7 @@
   <dialog id="modal-importar" class="modal wide-md"></dialog>
   <dialog id="modal-scanner" class="modal"></dialog>
   <dialog id="modal-roleta" class="modal"></dialog>
+  <dialog id="modal-foto" class="modal foto-modal"></dialog>
 
   <input type="file" id="importar-arquivo" accept="application/json,.json" hidden>
   <div id="toasts" aria-live="polite"></div>
@@ -69,6 +71,7 @@
   <script src="nuvem.js"></script>
   <script src="app.js"></script>
   <script src="extras.js"></script>
+  <script src="calendario.js"></script>
   <script src="scrollfx.js"></script>
 </body>
 </html>

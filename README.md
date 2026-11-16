@@ -13,6 +13,9 @@ critérios por livro e **releituras que não sobrescrevem as avaliações anteri
 - **Diário**: linha do tempo por ano/mês de todas as leituras
 - **Importar planilha**: CSV do Goodreads, do Skoob ou qualquer planilha (Título, Autor, Nota, Status, Data de leitura), com prévia e sem duplicar livros
 - **Escanear código de barras**: aponte a câmera para o ISBN no verso do livro (ou digite) e o app preenche título, autor, páginas e capa
+- **Calendário**: dias lidos (preenchido ao atualizar a página do livro), sequência de dias seguidos, páginas por dia e previsão de quando você termina o livro atual
+- **Séries**: série + volume em cada livro, com aviso do próximo volume
+- **Mood board**: fotos que lembram cada leitura, comprimidas e guardadas no Supabase Storage
 - **Roleta da fila**: sorteia a próxima leitura entre os livros de "quero ler"
 - Tema claro/escuro, backup em JSON (exportar/importar), funciona no celular
 
@@ -24,6 +27,8 @@ Com o Supabase configurado, o app abre numa **tela de login**: cada pessoa cria 
 2. Em **SQL Editor → New query**, cole todo o conteúdo de `supabase/schema.sql` e clique em **Run**. Isso cria as tabelas `perfis`, `livros` e `leituras` com as regras de segurança (cada usuário só vê os próprios dados).
 3. Em **Project Settings → API**, copie a **Project URL** e a chave **anon public** e cole em `config.js`.
 4. Em **Authentication → URL Configuration**, coloque o endereço do site da Vercel em **Site URL** (e também em **Redirect URLs**), para os links de confirmação de e-mail e de "esqueci minha senha" voltarem para o app.
+**Atualizações do banco (rode as que ainda não rodou):** `supabase/2026-11-storage-series.sql` cria o Storage de capas/fotos e as colunas de série.
+
 **Atualizações do banco:** se você criou o banco antes de novembro/2026, rode também `supabase/2026-11-datas-sem-dia.sql` no SQL Editor (permite datas só com mês ou só com ano).
 
 5. Opcional: em **Authentication → Providers → Email**, desligue "Confirm email" se não quiser exigir confirmação por e-mail.

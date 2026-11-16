@@ -208,7 +208,7 @@ function render() {
   const app = $('#app');
   if (!db.livros.length) app.innerHTML = viewVazia();
   else {
-    app.innerHTML = `<div class="view">${({ inicio: viewInicio, estante: viewEstante, diario: viewDiario })[ui.view]()}</div>`;
+    app.innerHTML = `<div class="view">${({ inicio: () => viewInicio(), estante: () => viewEstante(), diario: () => viewDiario(), calendario: () => viewCalendario() })[ui.view]()}</div>`;
     if (ui.view === 'estante') renderLista();
   }
   document.dispatchEvent(new CustomEvent('ml:render', { detail: { view: db.livros.length ? ui.view : 'vazia' } }));
@@ -607,6 +607,7 @@ function renderDetalhe() {
       <p class="script genero">${[l.genero, l.paginas ? `${l.paginas} páginas` : ''].filter(Boolean).map(esc).join(' · ') || 'um livro'}</p>
       <h2>${esc(l.titulo)}</h2>
       <p class="autor">${esc(l.autor) || 'Autor desconhecido'}</p>
+      ${serieHTML(l)}
       ${notaAtual(l) ? `<div class="nota-topo">${starsHTML(notaAtual(l), { size: 'lg' })}<b>${fmtNota(notaAtual(l))}</b>${conc.length > 1 ? '<span class="script" style="font-size:1rem">nota mais recente</span>' : ''}</div>` : ''}
       ${evolucao}
       ${ord.length ? `<div class="leitura-tabs" role="tablist">${ord.map((x, i) => `
@@ -636,6 +637,7 @@ function paginaLeitura(l, x, ord) {
     ${x.notas ? `<div class="jrow"><span class="jlbl">impressões</span><div class="notas">${esc(x.notas)}</div></div>` : ''}
     ${x.recomenda != null ? `<div class="jrow"><span class="jlbl">recomendaria?</span><span class="recs"><span class="rec sim ${x.recomenda ? 'on' : ''}">✓</span><span class="rec nao ${x.recomenda ? '' : 'on'}">✕</span></span></div>` : ''}
   </div>
+  ${moodHTML(l, x)}
   <div class="leitura-acoes">
     <button class="btn small pink" data-action="editar-leitura" data-id="${l.id}" data-lid="${x.id}">✎ ${x.fim ? 'Editar esta avaliação' : 'Editar leitura'}</button>
     <button class="btn small ghost danger" data-action="excluir-leitura" data-id="${l.id}" data-lid="${x.id}">Excluir esta leitura</button>
@@ -648,14 +650,14 @@ function novaLeitura(extra = {}) {
 }
 function comecar(id) {
   const l = acharLivro(id);
-  const lt = novaLeitura(); l.leituras.push(lt); salvar();
+  const lt = novaLeitura(); registrarDia(lt, 0); l.leituras.push(lt); salvar();
   toast(`Boa leitura! “${l.titulo}” está em Lendo agora.`);
   abrirDetalhe(id, lt.id); render();
 }
 function reler(id) {
   const l = acharLivro(id);
   const n = l.leituras.length + 1;
-  const lt = novaLeitura(); l.leituras.push(lt); salvar();
+  const lt = novaLeitura(); registrarDia(lt, 0); l.leituras.push(lt); salvar();
   toast(`${ordinal(n)} leitura iniciada — suas avaliações anteriores continuam guardadas.`);
   abrirDetalhe(id, lt.id); render();
 }
@@ -723,6 +725,11 @@ function abrirFormLivro(id = null) {
       </div>
       <div class="field"><label for="f-genero">Gênero</label><input id="f-genero" name="genero" list="lista-generos" value="${esc(l?.genero || '')}">
         <datalist id="lista-generos">${GENEROS.map((g) => `<option value="${g}">`).join('')}</datalist></div>
+      <div class="row3">
+        <div class="field"><label for="f-serie">Série <span class="muted">(opcional)</span></label><input id="f-serie" name="serie" list="lista-series" placeholder="Ex.: Jogos Vorazes" value="${esc(l?.serie || '')}">
+          <datalist id="lista-series">${seriesExistentes().map((s) => `<option value="${esc(s)}">`).join('')}</datalist></div>
+        <div class="field"><label for="f-vol">Volume</label><input id="f-vol" name="serieVol" type="number" min="0" step="0.5" placeholder="1" value="${esc(l?.serieVol ?? '')}"></div>
+      </div>
       ${l ? '' : `<div class="field"><span class="lbl">Status</span><div class="radio-cards">
         <label><input type="radio" name="status" value="quero" checked><span class="ico">${ICONES.quero}</span>Quero ler</label>
         <label><input type="radio" name="status" value="lendo"><span class="ico">${ICONES.lendo}</span>Lendo agora</label>
@@ -768,6 +775,7 @@ function salvarLivro(form) {
   const dados = {
     titulo: form.titulo.value.trim(), autor: form.autor.value.trim(), genero: form.genero.value.trim(),
     paginas: form.paginas.value ? +form.paginas.value : '', capa: ui.formLivro.capa, cor: ui.formLivro.cor,
+    serie: form.serie.value.trim(), serieVol: form.serie.value.trim() && form.serieVol.value !== '' ? +form.serieVol.value : '',
   };
   if (!dados.titulo) return;
   let l;
@@ -1004,9 +1012,14 @@ function salvarLeitura(form) {
   if (leituraId) { x = l.leituras.find((y) => y.id === leituraId); Object.assign(x, dados); }
   else { x = novaLeitura(dados); l.leituras.push(x); }
   if (x.fim && l.paginas) x.paginaAtual = +l.paginas;
+  if (dados.paginaAtual != null && !x.fim) registrarDia(x, x.paginaAtual);
+  if (x.fim && (x.fimPrecisao || 'dia') === 'dia') registrarDia(x, +l.paginas || x.paginaAtual || 0, x.fim);
   salvar();
   $('#modal-leitura').close();
-  if (concluir) { confete(); toast(`Leitura concluída! ${x.estrelas ? '★ ' + fmtNota(x.estrelas) : ''}`); }
+  if (concluir) {
+    confete(); toast(`Leitura concluída! ${x.estrelas ? '★ ' + fmtNota(x.estrelas) : ''}`);
+    const prox = proximoDaSerie(l); if (prox) setTimeout(() => toast(`Próximo da série ${l.serie}: “${prox.titulo}”`), 1600);
+  }
   else toast('Leitura salva.');
   render();
   abrirDetalhe(livroId, x.id);
@@ -1131,7 +1144,7 @@ document.addEventListener('change', (e) => {
   const k = t.dataset.change;
   if (k === 'progresso') {
     const l = acharLivro(t.dataset.id); const lt = leituraAtual(l); if (!lt) return;
-    lt.paginaAtual = Math.max(0, +t.value || 0); salvar();
+    lt.paginaAtual = Math.max(0, +t.value || 0); registrarDia(lt, lt.paginaAtual); salvar();
     if (l.paginas && lt.paginaAtual >= +l.paginas) { toast('Chegou na última página! Hora de avaliar 🎉'); abrirFormLeitura(l.id, null, { concluir: true }); }
     render(); if ($('#modal-detalhe').open) renderDetalhe();
   }
