@@ -1389,3 +1389,7 @@ html:has(dialog[open]) { overflow: hidden; }
           mask: linear-gradient(#000 0 0) top / 100% calc(100% - 21px) no-repeat, var(--wave-bot) bottom / 120px 22px repeat-x;
 }
 @media (max-width: 700px) { .hero:has(+ .secao.wavy) { padding-bottom: 60px; margin-bottom: 18px; } }
+
+/* prateleira justificada: lombadas sem inclinação (inclinadas "vazariam" da margem) */
+.shelf-row.justa .spine:not(:hover):not(:focus-visible) { transform: none; }
+.shelf-row { box-sizing: border-box; }

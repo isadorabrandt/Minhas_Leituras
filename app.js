@@ -458,19 +458,43 @@ function renderLista() {
 }
 function blocoLivros(ls) { return ui.modo === 'lombadas' ? estanteHTML(ls) : `<div class="grid-capas">${ls.map(capaCardHTML).join('')}</div>`; }
 
+/* Prateleiras justificadas: enche cada prateleira até o fim e estica levemente
+   as lombadas daquela fileira para fechar com a mesma margem do começo. */
+function larguraLombada(l) { const p = Math.min(+l.paginas || 280, 1000); return Math.round(32 + (p / 1000) * 26); }
 function estanteHTML(ls) {
-  const largura = ($('.wrap')?.clientWidth || 1000) - 80;
-  const porPrat = Math.max(5, Math.floor(largura / 50));
+  const celular = innerWidth <= 700;
+  const pad = celular ? 10 : innerWidth <= 520 ? 12 : 26, gap = celular ? 3 : 4;
+  const caixa = $('#lista-estante')?.clientWidth || $('.wrap')?.clientWidth || 1000;
+  const util = caixa - 4 - pad * 2; // 4 = bordas da parede
+  const fileiras = []; let atual = [], soma = 0;
+  ls.forEach((l) => {
+    const w = larguraLombada(l);
+    const extra = atual.length ? gap : 0;
+    if (atual.length && soma + extra + w > util) { fileiras.push({ itens: atual, soma, cheia: true }); atual = []; soma = 0; }
+    soma += (atual.length ? gap : 0) + w; atual.push(l);
+  });
+  if (atual.length) fileiras.push({ itens: atual, soma, cheia: false });
   let out = '<div class="parede">';
-  for (let i = 0; i < ls.length; i += porPrat) {
-    out += `<div class="shelf-row">${ls.slice(i, i + porPrat).map(lombadaHTML).join('')}</div><div class="plank"></div>`;
-  }
+  fileiras.forEach(({ itens, soma, cheia }) => {
+    // última fileira só estica se já estiver quase cheia (senão fica esticada demais)
+    const livre = util - soma;
+    const esticar = cheia || livre < util * 0.12;
+    const larguras = itens.map(larguraLombada);
+    const total = larguras.reduce((s, w) => s + w, 0);
+    let usado = 0;
+    const finais = larguras.map((w, k) => {
+      if (!esticar) return w;
+      if (k === larguras.length - 1) return w + (livre - usado);
+      const add = Math.floor(livre * (w / total)); usado += add; return w + add;
+    });
+    out += `<div class="shelf-row ${esticar ? 'justa' : ''}">${itens.map((l, k) => lombadaHTML(l, finais[k])).join('')}</div><div class="plank"></div>`;
+  });
   return out + '</div>';
 }
-function lombadaHTML(l) {
+function lombadaHTML(l, largura) {
   const p = Math.min(+l.paginas || 280, 1000);
   const h = Math.round(180 + (p / 1000) * 60 + (hash(l.titulo) % 22));
-  const w = Math.round(32 + (p / 1000) * 26);
+  const w = largura || larguraLombada(l);
   const cor = corDe(l);
   const releu = concluidas(l).length > 1;
   return `<button class="spine" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
