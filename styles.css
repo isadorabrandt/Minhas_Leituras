@@ -1381,3 +1381,11 @@ html:has(dialog[open]) { overflow: hidden; }
 /* marcador lateral: só aparece depois de passar do topo, e mais junto da borda */
 .scroll-fx #fita-scroll { right: 8px; transition: opacity .4s; }
 .scroll-fx #fita-scroll.mostrar { opacity: var(--vis, 0); }
+
+/* topo encostado direto na seção da meta (sem livros em leitura): termina em onda, com respiro creme */
+.hero:has(+ .secao.wavy) {
+  border-bottom: 0; margin-bottom: 26px; padding-bottom: 100px;
+  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 21px) no-repeat, var(--wave-bot) bottom / 120px 22px repeat-x;
+          mask: linear-gradient(#000 0 0) top / 100% calc(100% - 21px) no-repeat, var(--wave-bot) bottom / 120px 22px repeat-x;
+}
+@media (max-width: 700px) { .hero:has(+ .secao.wavy) { padding-bottom: 60px; margin-bottom: 18px; } }

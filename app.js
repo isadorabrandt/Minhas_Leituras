@@ -285,7 +285,10 @@ function viewInicio() {
   const quem = primeiroNome();
   const saud = `${h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'}, ${quem}...`;
   const nomes = lendo.slice(0, 2).map((l) => `<b>${esc(l.titulo)}</b>`).join(' &amp; ');
-  const arte = (lendo.length ? lendo : fila).slice(0, 2);
+  // topo nunca fica vazio: lendo → fila → últimos lidos
+  const recentes = db.livros.filter((l) => status(l) === 'lido').sort((x, y) => (concluidas(y).at(-1)?.fim || '').localeCompare(concluidas(x).at(-1)?.fim || ''));
+  const arte = (lendo.length ? lendo : fila.length ? fila : recentes).slice(0, 2);
+  const seloTxt = lendo.length ? ['lendo agora', lendo.length] : fila.length ? ['quero ler', fila.length] : ['lidos', recentes.length];
   const corBtn = ['pink', 'olive', 'tang', 'lilac'];
 
   return `
@@ -302,7 +305,7 @@ function viewInicio() {
     </div>
     <div class="hero-art">
       ${arte.map((l, i) => `<button class="hero-livro" data-action="abrir" aria-label="Abrir ${esc(l.titulo)}" data-id="${l.id}">${polaroidHTML(l, { r: i ? 6 : -7, fita: i ? 'olive' : '' })}</button>`).join('')}
-      ${seloHTML(lendo.length ? 'lendo agora' : 'quero ler', lendo.length || fila.length)}
+      ${seloHTML(seloTxt[0], seloTxt[1])}
     </div>
   </section>
 
