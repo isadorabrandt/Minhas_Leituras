@@ -497,7 +497,9 @@ function lombadaHTML(l, largura) {
   const w = largura || larguraLombada(l);
   const cor = corDe(l);
   const releu = concluidas(l).length > 1;
-  return `<button class="spine" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
+  // com capa: a lombada usa uma faixa da própria capa como fundo
+  const img = l.capa ? `;--img:url('${String(l.capa).replace(/'/g, '%27').replace(/"/g, '%22')}')` : '';
+  return `<button class="spine ${l.capa ? 'com-capa' : ''}" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${l.capa ? '#fff' : textoSobre(cor)};--h:${h}px;--w:${w}px;--px:${30 + (hash(l.id) % 40)}%${img}"
       aria-label="${esc(l.titulo)} — ${esc(l.autor)}">
     <span class="faixa f1"></span><span class="faixa f2"></span>
     ${status(l) === 'lendo' ? '<span class="marcador"></span>' : ''}
@@ -580,7 +582,7 @@ function renderDetalhe() {
       <button class="btn" data-action="leitura-passada" data-id="${l.id}">Já li — registrar</button>`;
   if (st === 'lendo') acoes = `<button class="btn hot" data-action="concluir" data-id="${l.id}">✓ Terminei — avaliar</button>`;
   if (st === 'lido') acoes = `<button class="btn olive" data-action="reler" data-id="${l.id}">↻ Reler este livro</button>
-      <button class="btn" data-action="leitura-passada" data-id="${l.id}">＋ Leitura antiga</button>`;
+      <button class="btn" data-action="leitura-passada" data-id="${l.id}">＋ Releitura</button>`;
 
   let progresso = '';
   if (atual) {
@@ -589,7 +591,8 @@ function renderDetalhe() {
       <div class="prog-row"><span>pág.</span><input type="number" min="0" ${tot ? `max="${tot}"` : ''} value="${+atual.paginaAtual || 0}" data-change="progresso" data-id="${l.id}" aria-label="Página atual"><span>${tot ? `de ${tot} · ${pct}%` : ''}</span></div></div>`;
   }
 
-  const evolucao = conc.length > 1 ? `<div class="evolucao"><span class="lbl">a nota mudou com o tempo...</span>${conc.map((x, i) => {
+  const mudou = new Set(conc.map((x) => x.estrelas)).size > 1;
+  const evolucao = conc.length > 1 && mudou ? `<div class="evolucao"><span class="lbl">a nota mudou com o tempo...</span>${conc.map((x, i) => {
     const d = i ? x.estrelas - conc[i - 1].estrelas : 0;
     return `${i ? '<span class="seta">→</span>' : ''}<span class="ev">${ordinal(numeroLeitura(l, x))} ★ ${fmtNota(x.estrelas)}${d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${fmtNota(Math.abs(d))}</span>` : ''}</span>`;
   }).join('')}</div>` : '';
