@@ -447,8 +447,30 @@ function filtrarLivros() {
   return ls.sort(cmp);
 }
 
+/* Livros com capa mas sem cor: tira a cor predominante da capa (em segundo plano)
+   para pintar a lombada. Tenta cada livro uma vez só. */
+const coresTentadas = new Set();
+// livros cuja cor já foi refeita com a "cor dominante" (as antigas eram a média, mais apagada)
+const CHAVE_CORES = 'minhas-leituras:cores-v2';
+const coresFeitas = (() => { try { return new Set(JSON.parse(localStorage.getItem(CHAVE_CORES)) || []); } catch (e) { return new Set(); } })();
+let fazendoCores = false;
+async function coresDasCapas() {
+  if (fazendoCores) return;
+  fazendoCores = true;
+  let mudou = false;
+  for (const l of db.livros) {
+    if (!l.capa || coresTentadas.has(l.id) || (l.cor && coresFeitas.has(l.id))) continue;
+    coresTentadas.add(l.id);
+    const r = await processarImagem(l.capa, !l.capa.startsWith('data:'));
+    if (r?.cor) { if (l.cor !== r.cor) { l.cor = r.cor; mudou = true; } coresFeitas.add(l.id); }
+  }
+  try { localStorage.setItem(CHAVE_CORES, JSON.stringify([...coresFeitas])); } catch (e) { /* ignora */ }
+  fazendoCores = false;
+  if (mudou) { salvar(); if (ui.view === 'estante') renderLista(); }
+}
 function renderLista() {
   const el = $('#lista-estante'); if (!el) return;
+  setTimeout(coresDasCapas, 300);
   const ls = filtrarLivros();
   if (!ls.length) { el.innerHTML = `<p class="script" style="text-align:center;padding:40px">nenhum livro por aqui...</p>`; return; }
   if (ui.filtro === 'todos') {
@@ -497,9 +519,7 @@ function lombadaHTML(l, largura) {
   const w = largura || larguraLombada(l);
   const cor = corDe(l);
   const releu = concluidas(l).length > 1;
-  // com capa: a lombada usa uma faixa da própria capa como fundo
-  const img = l.capa ? `;--img:url('${String(l.capa).replace(/'/g, '%27').replace(/"/g, '%22')}')` : '';
-  return `<button class="spine ${l.capa ? 'com-capa' : ''}" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${l.capa ? '#fff' : textoSobre(cor)};--h:${h}px;--w:${w}px;--px:${30 + (hash(l.id) % 40)}%${img}"
+  return `<button class="spine" data-action="abrir" data-id="${l.id}" style="--c:${cor};--t:${textoSobre(cor)};--h:${h}px;--w:${w}px"
       aria-label="${esc(l.titulo)} — ${esc(l.autor)}">
     <span class="faixa f1"></span><span class="faixa f2"></span>
     ${status(l) === 'lendo' ? '<span class="marcador"></span>' : ''}
@@ -819,6 +839,26 @@ function salvarLivro(form) {
 }
 
 /* Capa: arquivo, link, busca online */
+/* cor dominante e "viva" da capa (não a média, que fica barrenta) */
+function corDominante(img) {
+  const S = 24, m = document.createElement('canvas'); m.width = m.height = S;
+  const mx = m.getContext('2d', { willReadFrequently: true }); mx.drawImage(img, 0, 0, S, S);
+  const px = mx.getImageData(0, 0, S, S).data, grupos = new Map();
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i], g = px[i + 1], b = px[i + 2];
+    const k = (r >> 5) << 6 | (g >> 5) << 3 | (b >> 5);
+    const gr = grupos.get(k) || { n: 0, r: 0, g: 0, b: 0 }; gr.n++; gr.r += r; gr.g += g; gr.b += b; grupos.set(k, gr);
+  }
+  let melhor = null, nota = -1;
+  for (const gr of grupos.values()) {
+    const r = gr.r / gr.n, g = gr.g / gr.n, b = gr.b / gr.n;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), sat = max ? (max - min) / max : 0, luz = (max + min) / 510;
+    const pontos = gr.n * (0.35 + sat) * (luz > 0.92 || luz < 0.08 ? 0.25 : 1); // evita branco/preto puros
+    if (pontos > nota) { nota = pontos; melhor = [r, g, b]; }
+  }
+  const hex = (v) => Math.round(Math.min(255, v * 0.88)).toString(16).padStart(2, '0'); // um pouco mais escura, para o texto ler bem
+  return melhor ? `#${hex(melhor[0])}${hex(melhor[1])}${hex(melhor[2])}` : '';
+}
 function processarImagem(src, cors) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -828,13 +868,7 @@ function processarImagem(src, cors) {
         const w = Math.min(360, img.naturalWidth), h = Math.round(img.naturalHeight * (w / img.naturalWidth));
         const c = document.createElement('canvas'); c.width = w; c.height = h;
         const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
-        const m = document.createElement('canvas'); m.width = m.height = 8;
-        const mx = m.getContext('2d'); mx.drawImage(img, 0, 0, 8, 8);
-        const px = mx.getImageData(0, 0, 8, 8).data; let r = 0, g = 0, b = 0;
-        for (let i = 0; i < px.length; i += 4) { r += px[i]; g += px[i + 1]; b += px[i + 2]; }
-        const n = px.length / 4; const k = 0.85; // escurece um pouco para a lombada
-        const hex = (v) => Math.round((v / n) * k).toString(16).padStart(2, '0');
-        resolve({ src: c.toDataURL('image/jpeg', 0.82), cor: `#${hex(r)}${hex(g)}${hex(b)}` });
+        resolve({ src: c.toDataURL('image/jpeg', 0.82), cor: corDominante(img) });
       } catch (e) { resolve({ src, cor: '' }); } // imagem sem CORS: guarda o link
     };
     img.onerror = () => resolve(null);
@@ -846,6 +880,7 @@ async function definirCapa(src, cors) {
   const r = await processarImagem(src, cors);
   if (!r) { toast('Não consegui carregar essa imagem.', 'erro'); atualizarPreviewCapa(); return; }
   ui.formLivro.capa = r.src; ui.formLivro.cor = r.cor || ui.formLivro.cor;
+  if (ui.formLivro.id) coresFeitas.add(ui.formLivro.id);
   atualizarPreviewCapa();
 }
 /* Busca em várias fontes (Google Books geral + edições em português, Open Library),
